@@ -1,0 +1,3 @@
+# 컨테이너(리눅스)에서 읽는 SQL·스크립트가 있어 줄끝을 LF로 고정
+* text=auto eol=lf
+*.csv -text

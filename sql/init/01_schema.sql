@@ -6,21 +6,45 @@ CREATE SCHEMA IF NOT EXISTS raw;
 CREATE SCHEMA IF NOT EXISTS dim;
 CREATE SCHEMA IF NOT EXISTS mart;
 
--- ── 지역 기준 ────────────────────────────────────────────
--- 시군구 1행. 코드는 법정동 코드 앞 5자리(국토부 실거래가 API의 LAWD_CD).
--- 강원은 2023-06-11 강원특별자치도 출범으로 시도 코드가 42 → 51로 바뀌었다.
+-- ── 지역 기준 (전국) ──────────────────────────────────────
+-- 시군구 단위 1행. 코드는 법정동 코드 앞 5자리 = 국토부 실거래가 API의 LAWD_CD.
+-- 채우는 곳: pipeline/dim_region.py (국토교통부_전국 법정동, data.go.kr 15063424)
+--
+-- 단위(level)
+--   'sigungu' : 자치구·시·군 (구가 없는 시 포함)            → 수집·지도 단위 (is_leaf)
+--   'gu'      : 일반구 (수원시 장안구 41111 등)              → 수집·지도 단위 (is_leaf)
+--   'si'      : 일반구를 둔 시 (수원시 41110 등)             → 합산용 부모. 실거래가 API는 0건
+-- 2026-10-21 확인: 국토부 API는 과거 거래도 '현재 코드'로만 응답한다 (강원 42→51, 전북 45→52,
+--   전남광주 46·29→12, 군위 47720→27720, 2026년에 생긴 화성 일반구 모두). 옛 코드는 dim.region_code_history.
 CREATE TABLE IF NOT EXISTS dim.region (
-    region_code     char(5)     PRIMARY KEY,   -- 현재 코드 (강원: 51xxx)
-    legacy_code     char(5),                   -- 이전 코드 (강원: 42xxx)
-    code_changed_on date,                      -- 코드가 바뀐 날
-    sido            text        NOT NULL,      -- 짧은 이름 (강원, 서울 …)
-    sido_full       text        NOT NULL,
-    sigungu         text        NOT NULL,
+    region_code     char(5)     PRIMARY KEY,   -- 현재 코드
+    sido_code       char(2)     NOT NULL,
+    sido            text        NOT NULL,      -- 짧은 이름 (서울, 강원, 전남광주 …)
+    sido_full       text        NOT NULL,      -- 법정동 표기 (강원특별자치도 …)
+    sigungu         text        NOT NULL,      -- 화면 표시 이름 (춘천시, 수원시 장안구 …)
+    sigungu_raw     text        NOT NULL,      -- 법정동 표기 (수원시장안구)
     sigungu_type    text        NOT NULL CHECK (sigungu_type IN ('시', '군', '구')),
-    in_scope        boolean     NOT NULL DEFAULT false,  -- 1단계 서비스 범위 여부
-    UNIQUE (sido, sigungu)
+    level           text        NOT NULL CHECK (level IN ('sigungu', 'gu', 'si')),
+    parent_code     char(5),                   -- 일반구 → 시
+    is_leaf         boolean     NOT NULL,      -- 수집·지도 단위
+    legacy_code     char(5),                   -- 바로 이전 코드 (있으면)
+    code_changed_on date,
+    created_on      date,                      -- 법정동 생성일자
+    in_scope        boolean     NOT NULL DEFAULT false,  -- 수집 대상 (전국 확장 시 leaf 전부 true)
+    UNIQUE (sido_code, sigungu)
 );
 CREATE INDEX IF NOT EXISTS region_legacy_code_idx ON dim.region (legacy_code);
+CREATE INDEX IF NOT EXISTS region_parent_idx ON dim.region (parent_code);
+
+-- 옛 코드 → 현재 코드 (옛 원천 파일을 코드로 붙일 때 쓴다)
+CREATE TABLE IF NOT EXISTS dim.region_code_history (
+    old_code    char(5) NOT NULL,
+    region_code char(5) NOT NULL,
+    changed_on  date,
+    old_sido    text,                          -- 바뀌기 전 시도 (광주, 전남, 강원 …)
+    note        text,
+    PRIMARY KEY (old_code, region_code)
+);
 
 -- ── 원천: 행정안전부 지방공공요금 (data.go.kr 3045228) ──────
 -- merge_public_fee.py가 만든 public_fee_long.csv를 그대로 받는다.
