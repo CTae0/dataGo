@@ -67,6 +67,16 @@ with DAG("eodi_reference_monthly", schedule="0 4 2 * *", start_date=START, catch
     fee_dl >> fee_merge >> fee_load
     [std, fee_load] >> xwalk
 
+# ── 지도용 집계 (매일 밤) ──────────────────────────────────
+with DAG("eodi_build_mart", schedule="30 23 * * *", start_date=START, catchup=False, max_active_runs=1,
+         default_args=DEFAULTS, tags=["eodi", "mart"],
+         doc_md="매일 23:30: sql/mart/*.sql을 번호 순서대로 다시 만든다 (전월세 → 공공요금 → 장바구니 → 요약)."):
+    rent = bash("rent", "python -m pipeline.run_sql sql/mart/10_rent.sql")
+    utility = bash("utility", "python -m pipeline.run_sql sql/mart/20_utility.sql")
+    grocery = bash("grocery", "python -m pipeline.run_sql sql/mart/30_grocery.sql")
+    summary = bash("region_summary", "python -m pipeline.run_sql sql/mart/90_region_summary.sql")
+    [rent, utility, grocery] >> summary
+
 # ── 지역 기준 (연간) ───────────────────────────────────────
 with DAG("eodi_dim_region_yearly", schedule="0 3 20 7 *", start_date=START, catchup=False, max_active_runs=1,
          default_args=DEFAULTS, tags=["eodi", "dim"],
