@@ -206,6 +206,34 @@ docker compose exec db psql -U eodi -d eodi -f /sql/load_public_fee.sql
 - **전월세 전국 백필 진행 중** (최근 12개월부터). 끝나면 `eodi_build_mart`로 다시 집계해야 최근 12개월이 고르게 들어감
 - 경계(지도)는 **V-World API 키 필요** → 아래 다음 작업 1
 
+### 12. 외식비 — 행안부 하모니 + 착한가격업소 (2026-10-21)
+- 원천 조사: `docs/research/dining_sources.md`. **전국 시군구 단위 일반 외식 가격 원천은 없다** → 시도 값 + 시군구 보조 지표
+- **`mois_dining.py` → `raw.mois_dining_price`** (행안부 지방물가정보 외식비, 원자료 국가데이터처). 인증키 없음
+  - 시도 16곳(세종은 충남 값) × 9품목 × 월, **2011-09 ~ 2026-09, 180개월 25,920행** (2012-12은 원천이 전부 0 → 결측)
+  - 하모니 내부 경로 POST `hamoni.mois.go.kr/portal/lcpr/getIndvSrcvEatoutCstList.do` (품목 코드 BA~BI, 최대 12개월씩)
+  - **원천 오류를 바로잡음**
+    - 2014-07까지 BF·BG·BH 코드에 칼국수·짜장면·삼계탕 값이 들어 있음 → 실제 품목으로 바꿔 저장 (경계 전후 값이 이어지는 것으로 확인)
+    - 2018-03~2020-01 같은 시도·품목 행이 2개, 값이 다름(첫 행이 틀리기도 함). 2023-10 대구·대전·부산 '삼겹살 환산 전'에 '환산 후' 값
+    - → 2014-07 이후는 **참가격 외식비 화면(같은 자료)과 매달 대조**해 다르면 참가격 값 사용, `price_src = 'tprice'`.
+      참가격은 빠르게 부르면 연결을 끊음 → 달마다 3초 간격. 2014-06 이전은 대조 원천 없음
+  - 김밥 단위: 2016-12까지 1인분, 2017-01부터 1줄 (값 약 40% 하락). 삼겹살은 '환산 후(200g)'를 쓴다
+  - 실행: `python mois_dining.py` (최근 12개월, 약 1분) / `--from 201109` (전체, 10분 남짓)
+- **`good_price.py` → `raw.good_price_store`, `raw.good_price_menu`** (착한가격업소 3045247, 분기)
+  - 스냅샷 15개 (2019-09 ~ 2026-09) 적재. 최신 12,935곳 중 외식업 9,710곳, 230개 시군 전부
+  - 파일 형식 5가지(헤더로 판별), 2020-09 등록본 1개는 시도 집계표라 건너뜀. 대표자·연락처는 저장 안 함(개인정보)
+  - 기준일 = 파일 이름 날짜와 등록일 중 이른 날 (이름 날짜가 등록일보다 늦은 파일 2개)
+  - 외식업 판정은 업종 키워드 (업종 표기 120가지 이상: '한식_일반', '한식 육류' …)
+  - **가격 수준으로 쓰지 않는다** (일반 가격보다 1~2천 원 낮고 5,000·8,000원에 몰림). 가성비 식당 수 지표용
+  - 실행: `python good_price.py` (포털에서 새 파일 받고 전부 적재) / `--no-download`
+- 지역 매핑: `region_xwalk.py`에 `mois_dining`(충남 → 충남 + 세종), `good_price`(시도|시군) 추가. 원천 오타 별칭
+  (`광주광역시광역시`, `서울특별시시`, `세종시`, `게룡시`) → **매핑 실패 0건**
+- **집계 `sql/mart/40_dining.sql`** → `mart.dining_sido`(16행), `mart.dining_region`(leaf 256행)
+  - 품목 8개 가격(시도 값, `dining_gran` = sido/sido_part), `meal_avg`(냉면·비빔밥·김치찌개 백반·짜장면·칼국수 평균),
+    `meal_index`(16개 시도 평균 = 100), `meal_yoy_pct`, `good_price_dining_stores`(시 단위 원천이면 `good_price_gran = 'si'`)
+  - **아직 `90_region_summary.sql`과 `eodi_build_mart` DAG에 연결 안 함** → 다음 작업 7
+- 출처: `meta.data_source` 'mois_dining'(이용조건 미확인 → 표시), 'good_price'(제한 없음). `ATTRIBUTION.md` 갱신
+- 테이블: `sql/init/07_dining.sql` (기존 DB는 `sql/migrations/004_dining.sql`, 적용함)
+
 ## 다음 작업
 1. **V-World 인증키 발급(사용자)** → `.env`에 `VWORLD_API_KEY`. 시군구 경계 LT_C_ADSIGG_INFO(현행, GeoJSON)를 받아 PostGIS에 적재.
    (data.go.kr 경계 원천들은 2025년 기준이라 2026 인천·화성 개편이 빠짐)
@@ -214,6 +242,19 @@ docker compose exec db psql -U eodi -d eodi -f /sql/load_public_fee.sql
 4. Airflow DAG 켜기: 우선 `eodi_rent_backfill`, `eodi_kca_backfill`, `eodi_build_mart`
 5. 전월세 전환율: 한국부동산원 지역별 전월세전환율로 교체 (`sql/mart/10_rent.sql`의 0.055)
 6. 국토부·소비자원 API 운영계정 증량 신청(사용자) → `pipeline/quota.py` LIMITS
-7. 외식비: 별도 세션 「전국 외식비 원천 조사」 결과 반영 (`docs/research/dining_sources.md`, `mois_dining.py` 등은 그 세션이 만드는 중 — 아직 커밋 안 됨)
+7. 외식비 연결 (위 12번, 아직 커밋 안 됨): `mart.dining_region`을 `90_region_summary.sql`에 붙이고(`sources`에 mois_dining·good_price),
+   `eodi_build_mart`에 `40_dining.sql` 단계 추가. 수집 DAG: `mois_dining.py` 매월(10일쯤), `good_price.py` 분기.
+   선택: 경북 개인서비스요금 API(15143792, 22개 시군 외식 값) 활용신청(사용자) → 강원 3037864와 함께 시군 값 덮어쓰기
 8. 공개 전: `molit_rent`, `mois_public_fee` 이용조건 확인 후 `ATTRIBUTION.md`·`meta.data_source` 채우기
 - 참고: init SQL은 볼륨이 비어 있을 때만 실행된다. 기존 DB에는 `sql/migrations/`를 순서대로 적용
+
+### 12. 경계 + 조회 API + 지도 (2026-10-21, 진행 중)
+- V-World 시군구 경계 256곳 = dim.region leaf 256곳 완전 일치 (2026 개편 반영). 키는 `domain=localhost` 필요 (`.env` VWORLD_DOMAIN)
+- DB 이미지 `postgis/postgis:16-3.5`로 교체. glibc 차이로 collation 경고 → 전체 REINDEX + REFRESH COLLATION VERSION 완료.
+  **postgres:16(trixie)로 되돌리면 다시 REINDEX 필요**
+- `pipeline/boundary.py` → `dim.region_geom` (잘못된 도형 0, 총면적 100,204㎢). 웹용 단순화: `web`에서 `npm run boundaries` (mapshaper -clean, 1MB)
+- 조회 API `api/main.py` (FastAPI): /api/metrics, /api/regions, /api/regions/{code}, /api/sources — 동작 확인
+- 지도 `web/` (Vite 8 + React 19 + MapLibre 6): 데이터·범례·출처 표시는 뜨지만 **지도 캔버스에 아무것도 안 그려지는 문제 남음**
+  (worker는 setWorkerUrl + optimizeDeps.exclude로 로드됨, 새 콘솔 오류 없음). 다음: map 'load' 이벤트가 오는지, StrictMode 이중 마운트, style 확인
+- 실행: `.claude/launch.json`의 api(8000), web(5173)
+- 전월세 백필 1일차 끝(6,000회, 오늘 사용량 meta.api_usage에 반영). 남은 기간은 `eodi_rent_backfill` DAG를 켜면 이어받음

@@ -105,7 +105,8 @@ services:
         condition: service_completed_successfully
 
   db:
-    image: postgres:16
+    # PostGIS(시군구 경계). postgres:16과 같은 데이터 형식이라 기존 볼륨을 그대로 쓴다
+    image: postgis/postgis:16-3.5
     container_name: eodi-db
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-eodi}
