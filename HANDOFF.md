@@ -183,11 +183,37 @@ docker compose exec db psql -U eodi -d eodi -f /sql/load_public_fee.sql
 - 호출량: 조사일 1개 ≈ 상품 604회. 개발계정 2,000회/일 → 하루 조사일 3개 정도. 과거 전체를 받으려면 운영계정 증량 신청
 - 실행 순서: `meta` → `days --from 2026-01-01` → `prices --latest 2`
 
+### 11. 전국 확장 (2026-10-21, 계획: 전국 시군구 지도 + Airflow)
+- **git 저장소** 시작 (원격 없음). 커밋에 Claude 공동 작성자 줄을 넣지 않는다.
+- **지역 기준** `pipeline/dim_region.py` (국토교통부_전국 법정동 15063424, 현재 코드만 있음)
+  - `dim.region` 269행 = 자치구·시·군 217 + 일반구 39 + 구를 둔 시 13. **leaf 256곳**이 수집·지도 단위
+  - 확인: 국토부 API는 과거 거래도 **현재 코드로만** 응답 (전남광주 12xxx, 전북 52xxx, 2026년 생긴 화성 일반구 포함).
+    구를 둔 시 코드(수원 41110)는 0건 → 일반구로 받는다
+  - 2026 개편 반영: 전남광주통합특별시(코드 12), 인천 제물포·영종·서해·검단구, 화성 일반구 4곳
+  - `dim.region_code_history`: 옛 코드 67건 (강원 42, 전북 45, 광주 29, 전남 46, 군위, 인천 중·동·서구)
+- **지역 매핑** `pipeline/region_xwalk.py` → `dim.region_xwalk` (원천 키 → leaf, 정밀도 exact/si/legacy/sido_part/sido).
+  소비자원·표준데이터·행안부 키 모두 **매핑 실패 0건**. 마산·진해·청원·연기·남북제주군·인천 개편·잘린 이름('해운') 처리
+- **Airflow 3.3.2** (LocalExecutor, 같은 Postgres의 airflow DB). UI http://localhost:8080 (airflow/airflow)
+  - DAG 7개 (모두 일시정지 상태로 생성 → UI에서 켜야 돈다):
+    `eodi_rent_backfill`(매일 01시), `eodi_rent_monthly`(매월 5일), `eodi_kca_weekly`(토 06시), `eodi_kca_backfill`(매일 09시),
+    `eodi_reference_monthly`(매월 2일, 시험 실행 성공), `eodi_build_mart`(매일 23:30), `eodi_dim_region_yearly`(7/20)
+  - **API별 하루 예산** `meta.api_usage` + `pipeline/quota.py`: 국토부 4종 각 1만, 소비자원 2천 (KST 자정 초기화). 한도에 닿으면 정상 종료 → 다음 실행이 이어받음
+- **집계** `sql/mart/` (10 전월세 / 20 공공요금 / 30 장바구니 / 90 요약) → `mart.region_summary` 256행
+  - 전월세: 면적대 s≤40 / m≤60 / l≤85 / xl, 월세는 **환산 월세 = 월세 + 보증금×5.5%/12** (임시 전환율)
+  - 공공요금: 표준데이터 구간 단가로 상하수도 20㎥ 계산(기본요금 없음 → 과소), 없으면 행안부 시도 평균(정밀도 표시)
+  - 장바구니: 점포별 상대가격 기하평균 → 시군구 중위 지수(전국 중위 100). 점포 없는 94곳은 시도 값
+  - 검증: 춘천 상수 11,100 / 하수 12,900 / 봉투 470 = 손계산과 일치, 전월세 중위값 = 원본 직접 계산과 일치
+- **전월세 전국 백필 진행 중** (최근 12개월부터). 끝나면 `eodi_build_mart`로 다시 집계해야 최근 12개월이 고르게 들어감
+- 경계(지도)는 **V-World API 키 필요** → 아래 다음 작업 1
+
 ## 다음 작업
-1. (init SQL은 볼륨이 비어 있을 때만 실행됨 — 스키마를 바꾸면 `docker compose down -v` 후 다시 up)
-2. 전월세 → mart 집계: 시군 × 유형 × 연월별 전세 보증금 중위값, 월세(보증금 구간별) 중위값, ㎡당 가격
-   (월세는 보증금이 섞여 있어 전월세 전환율 적용 여부 결정 필요)
-3. 필요하면 수집 기간을 2023년 이전으로 넓히기 (`--from 201101`도 응답 확인함)
-4. 강원 물가정보(3037864) 적재: 품목명/규격 분리, 분류(장바구니/외식/공공요금…) 매핑, 시군 × 품목 long 테이블
-   → 상하수도 공백은 이 데이터로 먼저 채우고, 조례 보충(7번)은 계속 보류
-5. 공개 전: `molit_rent`, `mois_public_fee`의 이용조건 확인 후 `ATTRIBUTION.md`·`meta.data_source` 채우기
+1. **V-World 인증키 발급(사용자)** → `.env`에 `VWORLD_API_KEY`. 시군구 경계 LT_C_ADSIGG_INFO(현행, GeoJSON)를 받아 PostGIS에 적재.
+   (data.go.kr 경계 원천들은 2025년 기준이라 2026 인천·화성 개편이 빠짐)
+2. DB 이미지를 `postgis/postgis:16`으로 교체 (백필이 멈춘 사이에 — 볼륨은 그대로 호환)
+3. 조회 API(FastAPI) + 전국 지도(Vite + React + MapLibre), 출처 표시 포함
+4. Airflow DAG 켜기: 우선 `eodi_rent_backfill`, `eodi_kca_backfill`, `eodi_build_mart`
+5. 전월세 전환율: 한국부동산원 지역별 전월세전환율로 교체 (`sql/mart/10_rent.sql`의 0.055)
+6. 국토부·소비자원 API 운영계정 증량 신청(사용자) → `pipeline/quota.py` LIMITS
+7. 외식비: 별도 세션 「전국 외식비 원천 조사」 결과 반영 (`docs/research/dining_sources.md`, `mois_dining.py` 등은 그 세션이 만드는 중 — 아직 커밋 안 됨)
+8. 공개 전: `molit_rent`, `mois_public_fee` 이용조건 확인 후 `ATTRIBUTION.md`·`meta.data_source` 채우기
+- 참고: init SQL은 볼륨이 비어 있을 때만 실행된다. 기존 DB에는 `sql/migrations/`를 순서대로 적용
