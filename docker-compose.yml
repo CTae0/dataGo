@@ -1,0 +1,26 @@
+services:
+  db:
+    image: postgres:16
+    container_name: eodi-db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-eodi}
+      POSTGRES_USER: ${POSTGRES_USER:-eodi}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-eodi_local}
+      TZ: Asia/Seoul
+    ports:
+      # 로컬에 이미 PostgreSQL이 있을 수 있어 5433으로 연다
+      - "${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # 컨테이너를 처음 만들 때 번호 순서대로 실행된다 (스키마 + dim_region)
+      - ./sql/init:/docker-entrypoint-initdb.d:ro
+      # 적재 SQL에서 COPY로 읽을 수 있게 data 폴더를 연결
+      - ./data:/data:ro
+      - ./sql:/sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-eodi} -d ${POSTGRES_DB:-eodi}"]
+      interval: 5s
+      retries: 10
+
+volumes:
+  pgdata:
