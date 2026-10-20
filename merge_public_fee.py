@@ -135,7 +135,14 @@ def ym_from_text(*texts):
 
 
 def zip_name(info):
-    return info.filename if info.flag_bits & 0x800 else info.filename.encode("cp437").decode("cp949", "replace")
+    """ZIP 안 한글 파일명. UTF-8 표시가 없으면 zipfile이 cp437로 읽어 깨지므로 cp949로 되돌린다.
+    (파이썬 버전에 따라 이미 제대로 읽힌 경우도 있어서, 되돌릴 수 없으면 그대로 쓴다)"""
+    if info.flag_bits & 0x800:
+        return info.filename
+    try:
+        return info.filename.encode("cp437").decode("cp949", "replace")
+    except UnicodeEncodeError:
+        return info.filename
 
 
 def iter_sources(src):

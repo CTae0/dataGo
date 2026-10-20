@@ -96,9 +96,15 @@ def connect():
 
 
 # ── API ───────────────────────────────────────────────────
+# API(서비스)별 하루 한도를 나눠 쓰기 위한 이름 → pipeline/quota.py
+QUOTA_API = {"apt": "molit_apt_rent", "officetel": "molit_offi_rent",
+             "detached": "molit_sh_rent", "row_house": "molit_rh_rent"}
+
+
 class Client:
-    def __init__(self, key, max_calls, sleep):
+    def __init__(self, key, max_calls, sleep, quota=None):
         self.key, self.max_calls, self.sleep, self.calls = key, max_calls, sleep, 0
+        self.quota = quota
         self.s = requests.Session()
         retry = Retry(total=4, connect=4, read=4, backoff_factor=2,
                       status_forcelist=[429, 500, 502, 503, 504], allowed_methods=["GET"])
@@ -107,6 +113,12 @@ class Client:
     def page(self, house_type, lawd_cd, deal_ym, page_no, rows=PAGE_SIZE):
         if self.calls >= self.max_calls:
             raise CallLimit(f"이번 실행 호출 한도 {self.max_calls}회에 도달했습니다.")
+        if self.quota:
+            from pipeline.quota import QuotaExceeded
+            try:
+                self.quota.use(QUOTA_API[house_type])
+            except QuotaExceeded as e:
+                raise CallLimit(str(e))
         self.calls += 1
         r = self.s.get(f"{BASE}/{ENDPOINTS[house_type]}", timeout=30, params={
             "serviceKey": self.key, "LAWD_CD": lawd_cd, "DEAL_YMD": deal_ym,
@@ -217,9 +229,25 @@ def recent_months(n):
     return out
 
 
+def months_back_range(n):
+    """n개월 전 ~ 지난달 (YYYYMM, YYYYMM)"""
+    t = date.today()
+    y, m = t.year, t.month
+    y2, m2 = (y - 1, 12) if m == 1 else (y, m - 1)
+    y1, m1 = y2, m2
+    for _ in range(n - 1):
+        y1, m1 = (y1 - 1, 12) if m1 == 1 else (y1, m1 - 1)
+    return f"{y1}{m1:02d}", f"{y2}{m2:02d}"
+
+
 def cmd_fetch(a):
-    client = Client(service_key(), a.max_calls, a.sleep)
+    from pipeline.quota import Quota
+    if a.months_back:
+        a.from_ym, a.to_ym = months_back_range(a.months_back)
+    if not (a.from_ym and a.to_ym):
+        sys.exit("--from/--to 또는 --months-back을 주세요.")
     conn = connect()
+    client = Client(service_key(), a.max_calls, a.sleep, quota=Quota(conn))
     types = a.types.split(",")
     unknown = set(types) - set(ENDPOINTS)
     if unknown:
@@ -268,11 +296,11 @@ def cmd_fetch(a):
 
 
 def cmd_probe(a):
-    client = Client(service_key(), a.max_calls, a.sleep)
+    from pipeline.quota import Quota
     conn = connect()
+    client = Client(service_key(), a.max_calls, a.sleep, quota=Quota(conn))
     with conn.cursor() as cur:
         regs = regions(cur, {a.region})
-    conn.close()
     if not regs:
         sys.exit(f"dim.region에 {a.region}이 없습니다.")
     region_code, legacy, name = regs[0]
@@ -289,6 +317,7 @@ def cmd_probe(a):
                         sys.exit(f"API 오류 {e}")
                     counts.append(f"오류{e.code}")
             print(f"{ym:8}{t:11}{counts[0]:>8}{counts[1]:>8}")
+    conn.close()
     print(f"API 호출 {client.calls}회")
 
 
@@ -302,8 +331,9 @@ def main():
     common.add_argument("--sleep", type=float, default=0.2, help="호출 사이 간격(초)")
 
     f = sub.add_parser("fetch", parents=[common])
-    f.add_argument("--from", dest="from_ym", required=True, help="YYYYMM")
-    f.add_argument("--to", dest="to_ym", required=True, help="YYYYMM")
+    f.add_argument("--from", dest="from_ym", help="YYYYMM")
+    f.add_argument("--to", dest="to_ym", help="YYYYMM")
+    f.add_argument("--months-back", type=int, help="N개월 전 ~ 지난달 (--from/--to 대신, 정기 실행용)")
     f.add_argument("--regions", help="쉼표로 구분한 시군 코드 (신·구 코드 모두 가능)")
     f.add_argument("--codes", choices=["auto", "both", "legacy", "new"], default="auto")
     f.add_argument("--refresh", action="store_true", help="받은 기록이 있어도 다시 받기")

@@ -20,7 +20,7 @@
 import json
 import sys
 import time
-from datetime import date
+from datetime import datetime
 from pathlib import Path
 
 import psycopg2
@@ -82,7 +82,8 @@ def fetch_all(service, key):
 def save_snapshot(name, items):
     d = OUT / name
     d.mkdir(parents=True, exist_ok=True)
-    p = d / f"{date.today():%Y%m%d}.jsonl"
+    from pipeline.quota import KST          # 실행 위치(UTC 컨테이너 등)와 상관없이 KST 날짜
+    p = d / f"{datetime.now(KST):%Y%m%d}.jsonl"
     with p.open("w", encoding="utf-8") as fh:
         for it in items:
             fh.write(json.dumps(it, ensure_ascii=False) + "\n")

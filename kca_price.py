@@ -41,8 +41,9 @@ class CallLimit(RuntimeError):
 
 
 class Client:
-    def __init__(self, key, max_calls, sleep):
+    def __init__(self, key, max_calls, sleep, quota=None):
         self.key, self.max_calls, self.sleep, self.calls = key, max_calls, sleep, 0
+        self.quota = quota
         self.s = requests.Session()
         self.s.mount("https://", HTTPAdapter(max_retries=Retry(
             total=4, backoff_factor=2, status_forcelist=[429, 500, 502, 503, 504], allowed_methods=["GET"])))
@@ -50,6 +51,12 @@ class Client:
     def get(self, op, **params):
         if self.calls >= self.max_calls:
             raise CallLimit(f"이번 실행 호출 한도 {self.max_calls}회에 도달했습니다. 다시 실행하면 이어서 받습니다.")
+        if self.quota:
+            from pipeline.quota import QuotaExceeded
+            try:
+                self.quota.use("kca_price")
+            except QuotaExceeded as e:
+                raise CallLimit(str(e))
         self.calls += 1
         r = self.s.get(f"{BASE}/{op}", params={"serviceKey": self.key, **params}, timeout=120)
         time.sleep(self.sleep)
@@ -123,7 +130,9 @@ def cmd_days(a, cli, conn):
     with conn.cursor() as cur:
         cur.execute("SELECT inspect_day FROM raw.kca_survey_day WHERE has_data")
         known = {r[0] for r in cur.fetchall()}
-        cur.execute("SELECT inspect_day FROM raw.kca_survey_day WHERE NOT has_data AND probed_at > now() - interval '7 days'")
+        # 비어 있던 날: 최근 60일 안의 날만 7일마다 다시 확인 (늦게 올라오는 경우). 그보다 오래된 날은 다시 안 본다.
+        cur.execute("""SELECT inspect_day FROM raw.kca_survey_day WHERE NOT has_data
+                       AND (probed_at > now() - interval '7 days' OR inspect_day < current_date - 60)""")
         recent_empty = {r[0] for r in cur.fetchall()}
     found = 0
     try:
@@ -147,6 +156,14 @@ def cmd_prices(a, cli, conn):
     with conn.cursor() as cur:
         if a.days:
             days = [to_day(x) for x in a.days.split(",")]
+        elif a.pending:
+            # 상품을 다 받지 못한 조사일 (최근 것부터) — 과거 백필용
+            cur.execute("""SELECT d.inspect_day FROM raw.kca_survey_day d
+                           LEFT JOIN raw.kca_price_fetch_log l USING (inspect_day)
+                           WHERE d.has_data GROUP BY d.inspect_day
+                           HAVING count(l.good_id) < (SELECT count(*) FROM raw.kca_product)
+                           ORDER BY d.inspect_day DESC""")
+            days = [r[0] for r in cur.fetchall()]
         else:
             cur.execute("SELECT inspect_day FROM raw.kca_survey_day WHERE has_data ORDER BY inspect_day DESC LIMIT %s",
                         (a.latest,))
@@ -205,11 +222,13 @@ def main():
     p = sub.add_parser("prices")
     p.add_argument("--latest", type=int, default=1, help="자료 있는 최근 조사일 개수")
     p.add_argument("--days", help="쉼표로 구분한 YYYY-MM-DD (지정하면 --latest 무시)")
+    p.add_argument("--pending", action="store_true", help="상품을 다 받지 못한 조사일 전부 (최근 것부터)")
     p.add_argument("--refresh", action="store_true")
     p.set_defaults(func=cmd_prices)
     a = ap.parse_args()
-    cli = Client(common.service_key(), a.max_calls, a.sleep)
+    from pipeline.quota import Quota
     conn = common.connect()
+    cli = Client(common.service_key(), a.max_calls, a.sleep, quota=Quota(conn))
     try:
         a.func(a, cli, conn)
     finally:
