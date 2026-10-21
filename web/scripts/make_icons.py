@@ -55,7 +55,7 @@ def og():
     f = lambda path, s: ImageFont.truetype(path, s)
     d.text((430, 150), "어디 살까?", font=f(FONT_BOLD, 92), fill=INK)
     d.text((432, 285), "질문 몇 개면, 내 생활비로", font=f(FONT_BOLD, 44), fill=INK)
-    d.text((432, 345), "살기 좋은 동네 3곳", font=f(FONT_BOLD, 44), fill=BLUE)
+    d.text((432, 345), "살기 좋은 1등 동네", font=f(FONT_BOLD, 44), fill=BLUE)
     d.text((432, 430), "전국 256개 시군구 · 공공데이터로 계산한 월 생활비",
            font=f(FONT_REG, 28), fill=MUTED)
     d.text((432, 500), "wherelive-phi.vercel.app", font=f(FONT_BOLD, 28), fill=BLUE)

@@ -3,7 +3,7 @@ import Scene from './Scene.jsx'
 import { GROUP_COLOR, manwon } from './format.js'
 import { apiFetch } from './api.js'
 
-// 첫 화면: 퀴즈 먼저. 기본 답(1인·월세·빌라)으로 뽑은 예시 카드 3장을 미리 보여 준다.
+// 첫 화면: 퀴즈 먼저. 기본 답(1인·월세·빌라)으로 뽑은 1등 동네 예시 카드를 미리 보여 준다.
 const visible = (q, ans) => Object.entries(q.show_if || {}).every(([k, v]) => ans[k] === v)
 
 export default function Home({ spec, error, onStart, onMap }) {
@@ -20,7 +20,7 @@ export default function Home({ spec, error, onStart, onMap }) {
       <div className="home">
         <section className="hero">
           <p className="hero-kicker">전국 256개 시군구 · 공공데이터로 계산</p>
-          <h2 className="hero-title">질문 몇 개면,<br />내 생활비로 살기 좋은 동네 3곳</h2>
+          <h2 className="hero-title">질문 몇 개면,<br />내 생활비로 살기 좋은 1등 동네</h2>
           <p className="hero-sub">
             샤워는 몇 분? 에어컨은 풀가동? 출근은 버스 아니면 내 차? 재미있는 A/B 질문에 답하면
             주거비·관리비·전기·가스·장보기·외식·기름값까지 합친 월 생활비로 동네를 골라 드려요.
@@ -46,12 +46,13 @@ export default function Home({ spec, error, onStart, onMap }) {
 
         {sample?.results?.length > 0 && (
           <section className="home-sample">
-            <h3>예를 들면, 혼자 사는 빌라 월세파에게는</h3>
-            <div className="podium">
-              {sample.results.slice(0, 3).map((x) => (
+            <h3>예를 들면, 혼자 사는 빌라 월세파의 1등 동네는</h3>
+            <div className="podium home-one">
+              {sample.results.slice(0, 1).map((x) => (
                 <div key={x.region_code} className="pcard mini">
                   <div className="pcard-art"><Scene type={x.card?.archetype} /></div>
                   <div className="pcard-body">
+                    <span className="pcard-rank-inline">🥇 1위</span>
                     <span className="pcard-nick">{x.card?.nickname}</span>
                     <span className="pcard-name">{x.sido} {x.sigungu}</span>
                     <strong>월 약 {manwon(x.total)}</strong>
@@ -59,7 +60,7 @@ export default function Home({ spec, error, onStart, onMap }) {
                 </div>
               ))}
             </div>
-            <p className="muted small">내 답에 따라 순위가 완전히 달라져요.</p>
+            <p className="muted small">내 답에 따라 1등 동네가 완전히 달라져요.</p>
           </section>
         )}
       </div>

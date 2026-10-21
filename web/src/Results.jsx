@@ -123,7 +123,7 @@ export default function Results({ spec, data, onSelect, selected, onRestart }) {
       </div>
       {asm.where?.length > 0 && <p className="muted small">조건: {asm.where.join(' · ')}</p>}
       {asm.relaxed?.length > 0 && (
-        <p className="relaxed">조건을 모두 만족하는 곳이 3곳보다 적어서 「{asm.relaxed.join('」, 「')}」 조건은 빼고 골랐어요.</p>
+        <p className="relaxed">조건을 모두 만족하는 곳이 너무 적어서 「{asm.relaxed.join('」, 「')}」 조건은 빼고 골랐어요.</p>
       )}
 
       {data.count > 0 && (

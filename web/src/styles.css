@@ -194,7 +194,7 @@ html, body, #root { height: 100%; margin: 0; }
 .options.ab .option-tag { font-size: 12px; font-weight: 700; color: var(--accent); }
 @media (max-width: 520px) { .options.ab { grid-template-columns: 1fr; } .options.ab .option { min-height: 0; } }
 
-/* ── 결과 카드 3장 ── */
+/* ── 결과 카드 ── */
 .podium { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); margin: 12px 0; }
 .pcard { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: 14px; overflow: hidden;
          background: var(--surface-0); text-align: left; font: inherit; padding: 0; }
@@ -219,7 +219,7 @@ html, body, #root { height: 100%; margin: 0; }
 .pcard-facts span { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: #f2f2ef; color: var(--text-secondary); }
 .relaxed { font-size: 13px; color: var(--fallback-ink); background: var(--fallback-bg); padding: 8px 10px; border-radius: 8px; }
 
-/* 결과 모드: 카드 3장이 나란히 보이게 패널을 넓힌다 */
+/* 결과 모드: 카드와 표가 넉넉히 보이게 패널을 넓힌다 */
 .panel.wide { width: min(780px, 62%); }
 .panel.wide .podium { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 @media (max-width: 900px) { .panel.wide .podium { grid-template-columns: 1fr; } }
@@ -282,3 +282,7 @@ html, body, #root { height: 100%; margin: 0; }
 }
 .podium.single .pcard-name { font-size: 22px; }
 .podium.single .pcard-level strong { font-size: 20px; }
+
+/* 첫 화면 예시: 1등 동네 카드 하나 */
+.podium.home-one { grid-template-columns: minmax(0, 420px); }
+.pcard-rank-inline { font-size: 12px; font-weight: 700; color: var(--accent); }

@@ -215,7 +215,7 @@ def recommend(answers: dict):
     except ValueError as e:
         raise HTTPException(422, str(e))
     by_code = {r["region_code"]: r for r in rows}
-    for x in results[:3]:   # 카드 3장: 그림 유형·별명·설명·생활비 수준
+    for x in results[:3]:   # 카드 문구(그림 유형·별명·설명·수준): 화면은 1위만 쓰지만 2·3위도 붙여 둔다
         x["card"] = describe.card(x, by_code.get(x["region_code"]))
     return {"answers": normalized, "count": len(results), "results": results, "assumptions": assumptions}
 
