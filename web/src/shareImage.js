@@ -92,6 +92,17 @@ export async function makeShareImage({ results, groups, persona, sceneFor, host 
     try { ctx.drawImage(await svgToImage(svg, iw, ih), ix, iy, iw, ih) } catch { /* 그림 없이 */ }
   } else { ctx.fillStyle = '#e8f3ff'; ctx.fillRect(ix, iy, iw, ih) }
   ctx.restore()
+  const st = x.card?.stars
+  if (st && (st.edu || st.culture)) {   // 그림 오른쪽 위: 생활편의 별점
+    const star = (n) => (n ? '★'.repeat(n) + '☆'.repeat(4 - n) : '–')
+    const label = `교육 ${star(st.edu)}   문화 ${star(st.culture)}`
+    ctx.font = `700 28px ${FONT}`
+    const lw = ctx.measureText(label).width + 40
+    ctx.fillStyle = 'rgba(255,255,255,0.92)'
+    ctx.beginPath(); ctx.roundRect(ix + iw - lw - 20, iy + 20, lw, 52, 26); ctx.fill()
+    ctx.fillStyle = '#8a5a00'
+    ctx.fillText(label, ix + iw - lw, iy + 56)
+  }
 
   let ty = iy + ih + 56
   ctx.fillStyle = ACCENT; ctx.font = `800 34px ${FONT}`

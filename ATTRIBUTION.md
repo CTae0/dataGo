@@ -24,6 +24,13 @@
 | `kepco_house_power` | [한국전력공사 전력데이터개방포털 — 가구평균 전력사용량](https://bigdata.kepco.co.kr/cmsmain.do?scode=S01&pcode=000493&pstate=house) | 한국전력공사 | 미확인 (확인 전까지 표시) | 출처: 한국전력공사 전력데이터개방포털 「가구평균 전력사용량」 |
 | `opinet_price` | [한국석유공사 오피넷 — 시군구별 주유소 평균가격](https://www.opinet.co.kr/user/custapi/openApiInfoDtl.do?apiId=7) | 한국석유공사 | **출처 명시 필수** (오피넷 저작권정책) | 출처: 한국석유공사 오피넷(www.opinet.co.kr) |
 | `kapt_fee` | [K-apt 공동주택관리정보시스템 — 관리비공개의무단지 기본·면적·관리비 정보](https://www.k-apt.go.kr/web/board/webReference/boardList.do?boardType=03) | 국토교통부 (운영: 한국부동산원) | 미확인 (확인 전까지 표시) | 출처: 국토교통부 공동주택관리정보시스템(K-apt) |
+| `culture_facility` | [한국문화정보원_전국문화기반시설총람 정보 조회서비스](https://www.data.go.kr/data/15125097/openapi.do) | 한국문화정보원 (원자료: 문화체육관광부) | 미확인 (확인 전까지 표시) | 출처: 공공데이터포털(data.go.kr) 「한국문화정보원_전국문화기반시설총람 정보 조회서비스」 |
+| `city_park` | [전국도시공원정보표준데이터](https://www.data.go.kr/data/15012890/standard.do) | 각 지방자치단체 | 미확인 (확인 전까지 표시) | 출처: 공공데이터포털(data.go.kr) 「전국도시공원정보표준데이터」, 각 지방자치단체 제공 |
+| `neis_school` | [나이스 교육정보 개방포털 — 학교기본정보](https://open.neis.go.kr/portal/mainPage.do) | 교육부·시도교육청 | 미확인 (확인 전까지 표시) | 출처: 나이스 교육정보 개방포털(open.neis.go.kr) 「학교기본정보」 |
+| `neis_academy` | [나이스 교육정보 개방포털 — 학원교습소정보](https://open.neis.go.kr/portal/mainPage.do) | 교육부·시도교육청 | 미확인 (확인 전까지 표시) | 출처: 나이스 교육정보 개방포털(open.neis.go.kr) 「학원교습소정보」 |
+| `kinder_info` | [유치원알리미 — 유치원 일반현황](https://e-childschoolinfo.moe.go.kr/openApi/openApiList.do) | 교육부 | 미확인 (확인 전까지 표시) | 출처: 유치원알리미(e-childschoolinfo.moe.go.kr) 「유치원 일반현황」 |
+| `mois_population` | [행정안전부_법정동별 성/연령별 주민등록 인구수](https://www.data.go.kr/data/15108074/openapi.do) | 행정안전부 | 미확인 (확인 전까지 표시) | 출처: 공공데이터포털(data.go.kr) 「행정안전부_법정동별 성/연령별 주민등록 인구수」 |
+| `mois_cinema` | [행정안전부_문화_영화상영관 조회서비스](https://www.data.go.kr/data/15154848/openapi.do) | 행정안전부 | 미확인 | (아직 수집 못 함 — API가 'HTTP 에러 04'를 돌려줌) |
 
 - 두 표준데이터의 이용조건(저작자표시)은 2026-10-21 활용신청 때 확인한 내용입니다. 데이터셋 페이지에는 따로 표기돼 있지 않습니다.
 - 나머지 두 출처도 공개 전에 포털에서 이용조건을 확인하고 위 표와 `meta.data_source.license`를 채우세요.

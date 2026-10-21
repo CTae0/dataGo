@@ -227,3 +227,45 @@ def test_fuel_not_applicable_for_bus_riders_and_filled_for_drivers():
     res, _, _ = cm.recommend(regions, {**SOLO, "transit": "b"})
     g = next(x for x in res if x["region_code"] == "11680")
     assert g["items"]["fuel"]["filled"] and g["items"]["fuel"]["value"] > 0
+
+
+# ── 생활편의 점수 섞기 (교육·문화) ────────────────────────────
+def _scored(regions_scores):
+    return [{**r, "edu_score": e, "culture_score": c} for r, (e, c) in regions_scores]
+
+
+def test_zero_weights_keep_cost_order():
+    regions = _scored([(CHUNCHEON, (90, 90)), (GANGNAM, (10, 10)), (YANGYANG, (50, 50))])
+    res, a, asm = cm.recommend(regions, SOLO)                       # 주말 b(기본) · 학교 질문 없음
+    assert a["w_edu"] == 0 and a["w_culture"] == 0
+    assert [x["total"] for x in res] == sorted(x["total"] for x in res)
+    assert asm["weights"] == {"cost": 1.0, "edu": 0.0, "culture": 0.0}
+
+
+def test_culture_answer_lifts_high_culture_region():
+    # 춘천이 조금 비싸지만 문화 점수가 훨씬 높게 → 주말 A면 1위가 바뀐다
+    cheap = {**CHUNCHEON, "region_code": "90001", "sigungu": "싼군", "cost_s": 30.0}
+    rich = {**CHUNCHEON, "region_code": "90002", "sigungu": "문화시", "cost_s": 32.0}
+    filler = [({**GANGNAM, "region_code": f"91{i:03d}", "sigungu": f"비싼구{i}"}, (50, 50)) for i in range(20)]
+    regions = _scored([(cheap, (50, 5)), (rich, (50, 95))] + filler)   # 실제처럼 이웃 순위끼리 생활비 점수 차이가 작게
+    base, _, _ = cm.recommend(regions, SOLO)
+    blend, _, asm = cm.recommend(regions, {**SOLO, "weekend": "a"})
+    assert base[0]["sigungu"] == "싼군" and blend[0]["sigungu"] == "문화시"
+    assert asm["weights"]["culture"] == cm.W_CULTURE
+    s = blend[0]["scores"]
+    assert s["total"] == pytest.approx((1 - cm.W_CULTURE) * s["cost"] + cm.W_CULTURE * s["culture"], abs=0.1)   # cost는 반올림 값
+    assert blend[0]["national_rank"] == 2                              # 생활비 순위 배지는 그대로 생활비 기준
+
+
+def test_school_question_only_for_families():
+    assert "school" not in ans(**SOLO)["answers"] and "school" not in ans(**DUO)["answers"]
+    assert ans(**FAMILY, school="a")["w_edu"] == cm.W_EDU
+    assert ans(**SOLO, school="a")["w_edu"] == 0                       # 숨은 질문의 답은 무시
+
+
+def test_missing_scores_filled_with_sido_median_and_flagged():
+    regions = _scored([(CHUNCHEON, (80, 60)), (GANGNAM, (40, 40)), (YANGYANG, (None, None))])
+    res, _, _ = cm.recommend(regions, {**FAMILY, "school": "a", "weekend": "a"})
+    y = next(x for x in res if x["region_code"] == "51830")
+    assert y["scores"]["edu"] == 80 and y["scores"]["edu_filled"]       # 강원(춘천) 값으로 채움
+    assert y["scores"]["culture"] == 60 and y["scores"]["culture_filled"]

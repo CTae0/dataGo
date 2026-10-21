@@ -62,6 +62,10 @@ def card(result, features):
         facts.append(f"해안선 {f['coast_km']:.0f}km")
     if f.get("airport_name") and f.get("airport_km") is not None:
         facts.append(f"{f['airport_name']}까지 약 {f['airport_km']:.0f}km")
+    # 생활편의 시설 (sql/mart/85_amenities.sql, 소수는 주소가 시 단위인 시설을 인구 비율로 나눈 값 → 반올림)
+    for key, label in (("elem", "초등학교"), ("library", "도서관"), ("museum", "박물관·미술관")):
+        if f.get(key):
+            facts.append(f"{label} {round(f[key]):,}곳")
     items = result["items"]
     biggest = max(items, key=lambda k: items[k]["value"])
     lv = level(result["national_pct"])
@@ -76,9 +80,14 @@ def card(result, features):
         with_mgmt = items.get("mgmt", {}).get("value", 0) > 0
         what = "전기·가스·물" + ("·관리비" if with_mgmt else "")
         text += f" {what}{josa(what, '은', '는')} 합쳐서 월 약 {_won_short(energy)}이에요."
+    edu_st, cul_st = f.get("edu_stars"), f.get("culture_stars")
+    if cul_st == 4:
+        text += " 도서관·박물관·공원이 넉넉해서 주말이 심심할 틈이 없어요."
+    elif edu_st == 4:
+        text += " 학교·유치원·학원이 넉넉한 동네예요."
     groups = {}
     for v in items.values():
         if v.get("group"):
             groups[v["group"]] = groups.get(v["group"], 0) + v["value"]
     return {"archetype": arch, "nickname": nick, "intro": intro, "facts": facts, "text": text, "level": lv,
-            "groups": groups}
+            "groups": groups, "stars": {"edu": edu_st, "culture": cul_st}}

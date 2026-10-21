@@ -64,6 +64,18 @@ function Breakdown({ spec, items }) {
   )
 }
 
+// 생활편의 별점 (1~4, mart.region_scores 사분위). 고른 분야는 진하게
+export function starText(n) { return n ? '★'.repeat(n) + '☆'.repeat(4 - n) : '–' }
+function Stars({ x }) {
+  const st = x.card?.stars
+  if (!st || (!st.edu && !st.culture)) return null
+  return (
+    <span className="pcard-stars" aria-label={`교육 ${st.edu || '-'}점, 문화 ${st.culture || '-'}점 (4점 만점)`}>
+      <span>교육 <b>{starText(st.edu)}</b></span><span>문화 <b>{starText(st.culture)}</b></span>
+    </span>
+  )
+}
+
 function PodiumCard({ spec, x, selected, onSelect }) {
   const [open, setOpen] = useState(false)
   const c = x.card
@@ -84,6 +96,7 @@ function PodiumCard({ spec, x, selected, onSelect }) {
             {c && <span className="level-badge">{c.level.name} · 저렴한 순 상위 {c.level.pct}%</span>}
           </span>
           <Bar spec={spec} items={x.items} total={x.total} />
+          <Stars x={x} />
           {energy > 0 && (
             <span className="pcard-energy">
               <span className="swatch sm" style={{ background: GROUP_COLOR.energy }} />

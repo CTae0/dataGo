@@ -42,6 +42,13 @@ export default function Home({ spec, error, onStart, onMap }) {
               <span className="muted small">{spec.items.filter((it) => it.group === g.id).map((it) => it.label).join(' · ')}</span>
             </div>
           ))}
+          {spec && (
+            <div className="hg">
+              <span className="swatch" style={{ background: '#b97e00' }} />
+              <strong>생활편의</strong>
+              <span className="muted small">학교·유치원·학원 · 도서관·박물관·공원 (고르면 순위에 반영)</span>
+            </div>
+          )}
         </section>
 
         {sample?.results?.length > 0 && (

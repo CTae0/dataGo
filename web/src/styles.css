@@ -292,3 +292,7 @@ html, body, #root { height: 100%; margin: 0; }
 .podium.runners { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); margin-top: 8px; }
 .panel.wide .podium.runners { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 @media (max-width: 760px) { .panel.wide .podium.runners { grid-template-columns: 1fr; } }
+
+/* 생활편의 별점 */
+.pcard-stars { display: flex; flex-wrap: wrap; gap: 2px 12px; font-size: 12px; color: var(--text-secondary); }
+.pcard-stars b { color: #b97e00; font-weight: 600; letter-spacing: 1px; }

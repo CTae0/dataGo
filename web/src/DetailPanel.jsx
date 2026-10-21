@@ -88,6 +88,24 @@ export default function DetailPanel({ code, summary, metrics, sources, onClose, 
             </section>
           )}
 
+          {summary.edu_score != null && (
+            <section>
+              <h3>교육·문화 시설 <span className="muted small">(인구 {Number(summary.population || 0).toLocaleString('ko-KR')}명)</span></h3>
+              <table className="plain">
+                <tbody>
+                  <tr><th>교육·육아 점수</th><td>{Math.round(summary.edu_score)}점 {'★'.repeat(summary.edu_stars || 0)}{'☆'.repeat(4 - (summary.edu_stars || 0))}</td></tr>
+                  <tr><th>초등학교 · 중고등학교</th><td>{Math.round(summary.elem)}곳 · {Math.round(summary.secondary)}곳</td></tr>
+                  <tr><th>유치원 · 학원·교습소</th><td>{Math.round(summary.kinder)}곳 · {Math.round(summary.academy).toLocaleString('ko-KR')}곳</td></tr>
+                  <tr><th>문화·여가 점수</th><td>{Math.round(summary.culture_score)}점 {'★'.repeat(summary.culture_stars || 0)}{'☆'.repeat(4 - (summary.culture_stars || 0))}</td></tr>
+                  <tr><th>도서관 · 박물관·미술관</th><td>{Math.round(summary.library)}곳 · {Math.round(summary.museum)}곳</td></tr>
+                  <tr><th>문예회관·생활문화센터</th><td>{Math.round(summary.arts)}곳</td></tr>
+                  <tr><th>도시공원 (1인당 면적)</th><td>{Math.round(summary.parks)}곳 ({Math.round(summary.park_m2_per_person || 0)}㎡)</td></tr>
+                </tbody>
+              </table>
+              <p className="muted small">점수는 인구 대비 비율과 개수를 전국과 비교한 백분위 평균 (0~100). 나이스·유치원알리미·문화기반시설총람(2023 기준)·도시공원 표준데이터</p>
+            </section>
+          )}
+
           <section>
             <h3>공공요금</h3>
             <table className="plain">

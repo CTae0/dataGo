@@ -107,6 +107,15 @@ with DAG("eodi_mgmt_weekly", schedule="0 7 * * 6", start_date=START, catchup=Fal
     xwalk = bash("region_xwalk", "python -m pipeline.region_xwalk")
     dl >> load >> xwalk
 
+# ── 생활편의 시설·인구 (월간) ───────────────────────────────
+with DAG("eodi_poi_monthly", schedule="0 8 3 * *", start_date=START, catchup=False, max_active_runs=1,
+         default_args=DEFAULTS, tags=["eodi", "amenities"],
+         doc_md="매월 3일: 교육(나이스 학교·학원, 유치원알리미)·문화(문화기반시설총람, 도시공원, 영화상영관) 시설과 "
+                "법정동별 연령별 인구를 다시 받고(원천별로 갈아 끼움) 지역 매핑을 갱신. 집계는 eodi_build_mart."):
+    poi = bash("poi_all", "python poi.py all", execution_timeout=pendulum.duration(hours=2))
+    xwalk = bash("region_xwalk", "python -m pipeline.region_xwalk")
+    poi >> xwalk
+
 # ── 지도용 집계 (매일 밤) ──────────────────────────────────
 with DAG("eodi_build_mart", schedule="30 23 * * *", start_date=START, catchup=False, max_active_runs=1,
          default_args=DEFAULTS, tags=["eodi", "mart"],
@@ -121,8 +130,9 @@ with DAG("eodi_build_mart", schedule="30 23 * * *", start_date=START, catchup=Fa
     power = bash("power", "python -m pipeline.run_sql sql/mart/60_power.sql")
     fuel = bash("fuel", "python -m pipeline.run_sql sql/mart/70_fuel.sql")
     mgmt = bash("mgmt", "python -m pipeline.run_sql sql/mart/80_mgmt.sql")
+    amenities = bash("amenities", "python -m pipeline.run_sql sql/mart/85_amenities.sql")
     summary = bash("region_summary", "python -m pipeline.run_sql sql/mart/90_region_summary.sql")
-    [rent, utility, grocery, dining, features, power, fuel, mgmt] >> summary
+    [rent, utility, grocery, dining, features, power, fuel, mgmt, amenities] >> summary
 
 # ── 지역 기준 (연간) ───────────────────────────────────────
 with DAG("eodi_dim_region_yearly", schedule="0 3 20 7 *", start_date=START, catchup=False, max_active_runs=1,

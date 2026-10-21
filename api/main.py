@@ -73,6 +73,15 @@ METRICS = [
     {"id": "mgmt_per_m2", "label": "아파트 ㎡당 관리비", "detail": "공용관리비+장기수선충당금 ÷ 관리비부과면적, 의무단지 중위값 (최근 12개월, K-apt)",
      "unit": "원/㎡·월", "field": "mgmt_per_m2", "gran": "mgmt_gran", "better": "low", "group": "에너지·관리비",
      "source": "kapt_fee", "sources": ["kapt_fee"]},
+    {"id": "edu_score", "label": "교육·육아 점수", "detail": "초등학교·중고등학교·유치원·학원을 인구 대비·개수로 전국과 비교 (0~100, 높을수록 넉넉)",
+     "unit": "점", "field": "edu_score", "gran": None, "better": "high", "group": "생활편의",
+     "source": "neis_school", "sources": ["neis_school", "neis_academy", "kinder_info", "mois_population"]},
+    {"id": "culture_score", "label": "문화·여가 점수", "detail": "도서관·박물관·미술관·문예회관·공원을 인구 대비·개수로 전국과 비교 (0~100, 높을수록 넉넉)",
+     "unit": "점", "field": "culture_score", "gran": None, "better": "high", "group": "생활편의",
+     "source": "culture_facility", "sources": ["culture_facility", "city_park", "mois_population"]},
+    {"id": "library_per_100k", "label": "도서관 (인구 10만 명당)", "detail": "공공·국립도서관 수 ÷ 주민등록 인구 × 10만 (문화기반시설총람)",
+     "unit": "곳", "field": "library_per_100k", "gran": None, "better": "high", "group": "생활편의",
+     "source": "culture_facility", "sources": ["culture_facility", "mois_population"]},
 ]
 GRAN_RANK = {"exact": 0, "si": 1, "legacy": 2, "sido_part": 3, "sido": 4}
 
