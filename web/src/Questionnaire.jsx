@@ -51,7 +51,7 @@ export default function Questionnaire({ spec, initial, onDone, onCancel }) {
         <span className="muted">{groupsDone.map((x) => `${groupName[x.g]} ${x.done}/${x.total}`).join(' · ')}</span>
       </div>
       <div className="progress" aria-hidden="true"><div style={{ width: `${((step + 1) / qs.length) * 100}%` }} /></div>
-      <div className="quiz-group">{{ '생활': '나의 생활', '편의': '생활편의 — 고른 시설만 순위에 반영돼요', '어디서': '어디서 살고 싶나요' }[q.group] || q.group}</div>
+      <div className="quiz-group">{{ '생활': '나의 생활', '편의': '생활편의', '어디서': '어디서 살고 싶나요' }[q.group] || q.group}</div>
       <h2 className="quiz-title">{q.title}</h2>
 
       <div className="options ab" role="radiogroup" aria-label={q.title}>

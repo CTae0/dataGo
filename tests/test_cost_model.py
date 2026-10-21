@@ -267,26 +267,29 @@ def test_library_and_park_answers_lift_high_culture_region():
     assert blend[0]["national_rank"] == 2                              # 생활비 순위 배지는 그대로 생활비 기준
 
 
-def test_education_questions_only_for_families_and_by_kid_age():
-    for who in (SOLO, DUO):
-        assert not any(k in ans(**who)["answers"] for k in ("kid_age",) + EDU_KEYS)
-    assert cm.amenity_weights(ans(**SOLO, elem="a")) == {}              # 숨은 질문의 답은 무시
-    pre = ans(**FAMILY, kid_age="a")["answers"]
-    school = ans(**FAMILY, kid_age="b")["answers"]
+def test_kid_questions_follow_has_kids_answer():
+    assert not any(k in ans(**SOLO)["answers"] for k in ("has_kids", "kid_age") + EDU_KEYS)   # 혼자 살면 묻지 않음
+    for who in (DUO, FAMILY):
+        no_kids = ans(**who, has_kids="b")["answers"]
+        assert "has_kids" in no_kids and not any(k in no_kids for k in ("kid_age",) + EDU_KEYS)   # '없어요' → 건너뜀
+    assert cm.amenity_weights(ans(**FAMILY, has_kids="b", elem="a")) == {}   # 건너뛴 질문의 답은 무시
+    pre = ans(**DUO, has_kids="a", kid_age="a")["answers"]                    # 2인 가구도 아이가 있으면 묻는다
+    school = ans(**FAMILY, has_kids="a", kid_age="b")["answers"]
     assert "kinder" in pre and "secondary" not in pre and "academy" not in pre
     assert "kinder" not in school and {"secondary", "academy", "elem"} <= set(school)
-    assert set(cm.amenity_weights(ans(**FAMILY, kid_age="b", elem="a", academy="a"))) == {"elem", "academy"}
+    w = cm.amenity_weights(ans(**FAMILY, has_kids="a", kid_age="b", elem="a", academy="a"))
+    assert set(w) == {"elem", "academy"}
 
 
 def test_all_picks_capped():
     picks = {k: "a" for k in ("elem", "secondary", "academy", "library", "museum", "arts", "park")}
-    w = cm.amenity_weights(ans(**FAMILY, kid_age="b", **picks))
+    w = cm.amenity_weights(ans(**FAMILY, has_kids="a", kid_age="b", **picks))
     assert sum(w.values()) == pytest.approx(cm.MAX_AMENITY_WEIGHT)
 
 
 def test_missing_scores_filled_with_sido_median_and_flagged():
     regions = _scored([(CHUNCHEON, (80, 60)), (GANGNAM, (40, 40)), (YANGYANG, (None, None))])
-    res, _, _ = cm.recommend(regions, {**FAMILY, "kid_age": "b", "elem": "a", "library": "a"})
+    res, _, _ = cm.recommend(regions, {**FAMILY, "has_kids": "a", "kid_age": "b", "elem": "a", "library": "a"})
     y = next(x for x in res if x["region_code"] == "51830")
     picked = {p["key"]: p for p in y["scores"]["picked"]}
     assert picked["elem"]["score"] == 80 and picked["elem"]["filled"]   # 강원(춘천) 값으로 채움

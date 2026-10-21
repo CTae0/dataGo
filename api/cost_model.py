@@ -2,7 +2,7 @@
 질문지 → 시군구별 월 생활비 추정 (순수 함수, DB 없음)
 
 - QUESTIONS: 질문·선택지 문구와 모델 계수. /api/questions가 그대로 내려준다 → 문구만 바꿀 땐 여기만 고친다.
-  말투: 재미있게, 하지만 비하하지 않는다(소득·외모·가족 형태 농담 금지). 선택지마다 hint(작은 글씨 기준)를 꼭 단다.
+  말투: 재미있게, 하지만 비하하지 않는다(소득·외모·가족 형태 농담 금지). 선택지마다 hint(작은 글씨)를 꼭 단다. hint는 '어떤 생활인지'만 적고(예: 보일러 늘 켜 둠) 계산 방식(배수·우대·반영 여부)은 적지 않는다 → 결과 화면 '이렇게 계산했어요'에만 둔다.
 - estimate(region, answers): 지역 1곳의 항목별 원/월
 - recommend(regions, answers): 조건에 맞는 지역을 월 합계 오름차순으로
 
@@ -110,20 +110,20 @@ HOUSEHOLD = {   # 문항 1
 #   show_if: 앞 질문의 답에 따라 보이는 질문 / set.where: 지역 조건 (mart.region_features)
 QUESTIONS = [
     {"id": "living", "group": "생활", "title": "우리 집 식구는?", "options": [
-        {"id": "a", "label": "나 혼자 산다, 자유가 최고", "hint": "1인 가구 · 40㎡ 이하 집", "set": {"household": "solo"}},
-        {"id": "b", "label": "같이 사는 사람이 있다", "hint": "2인 이상", "set": {"household": "duo"}},
+        {"id": "a", "label": "나 혼자 산다, 자유가 최고", "hint": "혼자 사는 1인 가구", "set": {"household": "solo"}},
+        {"id": "b", "label": "같이 사는 사람이 있다", "hint": "가족·연인·친구와 함께 살아요", "set": {"household": "duo"}},
     ]},
     {"id": "family_size", "group": "생활", "title": "식탁에 둘러앉는 인원은?", "show_if": {"living": "b"}, "options": [
-        {"id": "a", "label": "둘이 딱 좋아, 오붓하게", "hint": "2인 가구 · 40~60㎡ 집", "set": {"household": "duo"}},
-        {"id": "b", "label": "우리 집은 작은 부족", "hint": "자녀 있는 4인 가구 · 60~85㎡ 집", "set": {"household": "family"}},
+        {"id": "a", "label": "둘이 딱 좋아, 오붓하게", "hint": "둘이 사는 2인 가구", "set": {"household": "duo"}},
+        {"id": "b", "label": "우리 집은 작은 부족", "hint": "넷 안팎이 북적북적", "set": {"household": "family"}},
     ]},
     {"id": "tenure", "group": "생활", "title": "보증금은?", "options": [
-        {"id": "a", "label": "목돈 묻어 두는 전세파", "hint": "전세 보증금 이자(연 5.5%)를 월 비용으로", "set": {"tenure": "jeonse"}},
-        {"id": "b", "label": "통장은 가볍게, 월세파", "hint": "보증금+월세를 월 비용으로 환산", "set": {"tenure": "wolse"}},
+        {"id": "a", "label": "목돈 묻어 두는 전세파", "hint": "큰 보증금을 맡기고 월세는 없어요", "set": {"tenure": "jeonse"}},
+        {"id": "b", "label": "통장은 가볍게, 월세파", "hint": "보증금은 적게, 매달 월세를 내요", "set": {"tenure": "wolse"}},
     ]},
     {"id": "house", "group": "생활", "title": "우리 집 스타일은?", "options": [
-        {"id": "a", "label": "관리사무소 아저씨와 인사하는 아파트파", "hint": "아파트 · 관리비 포함", "set": {"house": "apt"}},
-        {"id": "b", "label": "관리비 없는 빌라·원룸 자유인", "hint": "빌라·다세대·오피스텔·단독", "set": {"house": "other"}},
+        {"id": "a", "label": "관리사무소 아저씨와 인사하는 아파트파", "hint": "아파트 단지에 살아요", "set": {"house": "apt"}},
+        {"id": "b", "label": "관리비 없는 빌라·원룸 자유인", "hint": "빌라·다세대·오피스텔·단독주택", "set": {"house": "other"}},
     ]},
     {"id": "shower", "group": "생활", "title": "샤워할 때 물은?", "options": [
         {"id": "a", "label": "부르주아처럼 신경 안 쓰고 콸콸", "hint": "15분 이상 · 하루 두 번도 OK", "set": {"shower": 1.4}},
@@ -134,8 +134,8 @@ QUESTIONS = [
         {"id": "b", "label": "전기장판과 의리, 보일러는 거의 안 켬", "hint": "외출·취침 땐 끔", "set": {"boiler": 0.7}},
     ]},
     {"id": "aircon", "group": "생활", "title": "한여름 에어컨은?", "options": [
-        {"id": "a", "label": "열대야엔 24시간 풀가동, 북극곰 모드", "hint": "7~8월 전기 사용량 1.5배", "set": {"aircon": 1.5}},
-        {"id": "b", "label": "선풍기와 의리, 에어컨은 손님 올 때만", "hint": "7~8월 사용량 0.9배", "set": {"aircon": 0.9}},
+        {"id": "a", "label": "열대야엔 24시간 풀가동, 북극곰 모드", "hint": "여름밤 내내 에어컨 켜고 자요", "set": {"aircon": 1.5}},
+        {"id": "b", "label": "선풍기와 의리, 에어컨은 손님 올 때만", "hint": "선풍기 위주, 에어컨은 가끔", "set": {"aircon": 0.9}},
     ]},
     {"id": "grocery", "group": "생활", "title": "우리 집 냉장고는?", "options": [
         {"id": "a", "label": "마트 시식 코너 VIP, 늘 꽉 차 있음", "hint": "주 2~3회 장보기", "set": {"grocery": 1.3}},
@@ -150,82 +150,86 @@ QUESTIONS = [
         {"id": "b", "label": "한 장으로 한 달 버티는 미니멀리스트", "hint": "월 1~2장", "set": {"bags": 2}},
     ]},
     {"id": "transit", "group": "생활", "title": "출퇴근은?", "options": [
-        {"id": "a", "label": "버스 기사님과 인사하는 사이", "hint": "버스 월 40회 이상", "set": {"trips": 44, "car": False}},
-        {"id": "b", "label": "내 차와 한 몸, 운전대가 곧 출근 도장", "hint": "자가용 출퇴근 · 기름값 포함", "set": {"trips": 2, "car": True}},
+        {"id": "a", "label": "버스 기사님과 인사하는 사이", "hint": "거의 매일 버스로 출퇴근", "set": {"trips": 44, "car": False}},
+        {"id": "b", "label": "내 차와 한 몸, 운전대가 곧 출근 도장", "hint": "매일 자가용으로 출퇴근", "set": {"trips": 2, "car": True}},
     ]},
     {"id": "drive", "group": "생활", "title": "운전해서 가는 길은?", "show_if": {"transit": "b"}, "options": [
-        {"id": "a", "label": "고속도로 타는 장거리 출퇴근러", "hint": "자가용 평균의 1.5배 · 월 약 1,400km",
+        {"id": "a", "label": "고속도로 타는 장거리 출퇴근러", "hint": "출퇴근길이 왕복 1시간을 넘어요",
          "set": {"km_factor": 1.5}},
-        {"id": "b", "label": "회사가 코앞, 동네 한 바퀴 수준", "hint": "자가용 평균의 0.6배 · 월 약 560km",
+        {"id": "b", "label": "회사가 코앞, 동네 한 바퀴 수준", "hint": "출퇴근길이 10~20분이면 끝",
          "set": {"km_factor": 0.6}},
     ]},
     # ── 생활편의 세부 질문: A를 고른 시설 지표만 순위에 반영 (INDICATORS) ──
-    {"id": "kid_age", "group": "편의", "title": "우리 집 아이는?", "show_if": {"living": "b", "family_size": "b"}, "options": [
+    {"id": "has_kids", "group": "편의", "title": "우리 집에 아이가 있나요?", "show_if": {"living": "b"}, "options": [
+        {"id": "a", "label": "있어요, 우리 집 꼬마 대장", "hint": "집에 아이가 있어요", "set": {"kids": True}},
+        {"id": "b", "label": "없어요, 어른들만 오붓하게", "hint": "아이 없이 어른만 살아요", "set": {"kids": False}},
+    ]},
+    {"id": "kid_age", "group": "편의", "title": "우리 집 아이는?", "show_if": {"living": "b", "has_kids": "a"}, "options": [
         {"id": "a", "label": "아직 유치원 갈 나이, 뽀로로가 최고", "hint": "미취학 (만 3~5세 안팎)", "set": {"kid": "preschool"}},
         {"id": "b", "label": "학교 다니는 나이, 숙제 전쟁 중", "hint": "초·중·고 학생", "set": {"kid": "school"}},
     ]},
-    {"id": "kinder", "group": "편의", "title": "유치원은?", "show_if": {**{"living": "b", "family_size": "b"}, "kid_age": "a"}, "options": [
-        {"id": "a", "label": "집 앞에 골라 보낼 만큼 넉넉해야", "hint": "유치원 많은 곳 우대", "set": {"amenity": {"kinder": True}}},
-        {"id": "b", "label": "한 곳만 있어도 OK, 차로 데려다줌", "hint": "순위에 반영 안 함", "set": {"amenity": {"kinder": False}}},
+    {"id": "kinder", "group": "편의", "title": "유치원은?", "show_if": {**{"living": "b", "has_kids": "a"}, "kid_age": "a"}, "options": [
+        {"id": "a", "label": "집 앞에 골라 보낼 만큼 넉넉해야", "hint": "걸어서 보낼 유치원을 골라 보내고 싶어요", "set": {"amenity": {"kinder": True}}},
+        {"id": "b", "label": "한 곳만 있어도 OK, 차로 데려다줌", "hint": "차로 데려다줘도 괜찮아요", "set": {"amenity": {"kinder": False}}},
     ]},
-    {"id": "elem", "group": "편의", "title": "초등학교는?", "show_if": {"living": "b", "family_size": "b"}, "options": [
-        {"id": "a", "label": "초품아 필수, 걸어서 등교", "hint": "초등학교 많은 곳 우대", "set": {"amenity": {"elem": True}}},
-        {"id": "b", "label": "스쿨버스 타고 가도 괜찮아", "hint": "순위에 반영 안 함", "set": {"amenity": {"elem": False}}},
+    {"id": "elem", "group": "편의", "title": "초등학교는?", "show_if": {"living": "b", "has_kids": "a"}, "options": [
+        {"id": "a", "label": "초품아 필수, 걸어서 등교", "hint": "아이가 걸어서 학교에 가요", "set": {"amenity": {"elem": True}}},
+        {"id": "b", "label": "스쿨버스 타고 가도 괜찮아", "hint": "등교는 버스나 차로 해도 돼요", "set": {"amenity": {"elem": False}}},
     ]},
-    {"id": "secondary", "group": "편의", "title": "중·고등학교는?", "show_if": {**{"living": "b", "family_size": "b"}, "kid_age": "b"}, "options": [
-        {"id": "a", "label": "학교 선택지가 많아야 마음이 편해", "hint": "중·고등학교 많은 곳 우대", "set": {"amenity": {"secondary": True}}},
-        {"id": "b", "label": "가까운 한 곳이면 충분", "hint": "순위에 반영 안 함", "set": {"amenity": {"secondary": False}}},
+    {"id": "secondary", "group": "편의", "title": "중·고등학교는?", "show_if": {**{"living": "b", "has_kids": "a"}, "kid_age": "b"}, "options": [
+        {"id": "a", "label": "학교 선택지가 많아야 마음이 편해", "hint": "학교를 골라 보내고 싶어요", "set": {"amenity": {"secondary": True}}},
+        {"id": "b", "label": "가까운 한 곳이면 충분", "hint": "집 근처 학교면 충분해요", "set": {"amenity": {"secondary": False}}},
     ]},
-    {"id": "academy", "group": "편의", "title": "학원은?", "show_if": {**{"living": "b", "family_size": "b"}, "kid_age": "b"}, "options": [
-        {"id": "a", "label": "학원가가 곧 경쟁력, 대치동 부럽지 않게", "hint": "학원·교습소 많은 곳 우대", "set": {"amenity": {"academy": True}}},
-        {"id": "b", "label": "인강과 문제집이면 충분", "hint": "순위에 반영 안 함", "set": {"amenity": {"academy": False}}},
+    {"id": "academy", "group": "편의", "title": "학원은?", "show_if": {**{"living": "b", "has_kids": "a"}, "kid_age": "b"}, "options": [
+        {"id": "a", "label": "학원가가 곧 경쟁력, 대치동 부럽지 않게", "hint": "학원 여러 곳을 다녀요", "set": {"amenity": {"academy": True}}},
+        {"id": "b", "label": "인강과 문제집이면 충분", "hint": "학원은 거의 안 다녀요", "set": {"amenity": {"academy": False}}},
     ]},
     {"id": "library", "group": "편의", "title": "책은?", "options": [
-        {"id": "a", "label": "도서관이 제2의 거실", "hint": "공공도서관 많은 곳 우대", "set": {"amenity": {"library": True}}},
-        {"id": "b", "label": "책보다 유튜브가 편해", "hint": "순위에 반영 안 함", "set": {"amenity": {"library": False}}},
+        {"id": "a", "label": "도서관이 제2의 거실", "hint": "한 달에 몇 번은 도서관에 가요", "set": {"amenity": {"library": True}}},
+        {"id": "b", "label": "책보다 유튜브가 편해", "hint": "책은 거의 안 읽어요", "set": {"amenity": {"library": False}}},
     ]},
     {"id": "museum", "group": "편의", "title": "전시회는?", "options": [
-        {"id": "a", "label": "박물관·미술관 도장깨기가 취미", "hint": "박물관·미술관 많은 곳 우대", "set": {"amenity": {"museum": True}}},
-        {"id": "b", "label": "전시는 1년에 한 번이면 충분", "hint": "순위에 반영 안 함", "set": {"amenity": {"museum": False}}},
+        {"id": "a", "label": "박물관·미술관 도장깨기가 취미", "hint": "주말마다 전시회를 찾아다녀요", "set": {"amenity": {"museum": True}}},
+        {"id": "b", "label": "전시는 1년에 한 번이면 충분", "hint": "전시는 1년에 한두 번", "set": {"amenity": {"museum": False}}},
     ]},
     {"id": "arts", "group": "편의", "title": "취미·공연은?", "options": [
-        {"id": "a", "label": "문화센터 강좌에 공연 관람까지", "hint": "문예회관·생활문화센터 많은 곳 우대", "set": {"amenity": {"arts": True}}},
-        {"id": "b", "label": "취미는 집에서 혼자 조용히", "hint": "순위에 반영 안 함", "set": {"amenity": {"arts": False}}},
+        {"id": "a", "label": "문화센터 강좌에 공연 관람까지", "hint": "공연 관람이나 취미 강좌를 즐겨요", "set": {"amenity": {"arts": True}}},
+        {"id": "b", "label": "취미는 집에서 혼자 조용히", "hint": "집에서 쉬는 게 최고의 취미", "set": {"amenity": {"arts": False}}},
     ]},
     {"id": "park", "group": "편의", "title": "산책은?", "options": [
-        {"id": "a", "label": "저녁마다 공원 한 바퀴, 없으면 못 살아", "hint": "1인당 공원 면적 넓은 곳 우대", "set": {"amenity": {"park": True}}},
-        {"id": "b", "label": "걷는 건 출퇴근으로 충분", "hint": "순위에 반영 안 함", "set": {"amenity": {"park": False}}},
+        {"id": "a", "label": "저녁마다 공원 한 바퀴, 없으면 못 살아", "hint": "매일 산책이나 운동을 해요", "set": {"amenity": {"park": True}}},
+        {"id": "b", "label": "걷는 건 출퇴근으로 충분", "hint": "산책은 가끔", "set": {"amenity": {"park": False}}},
     ]},
     {"id": "capital", "group": "어디서", "title": "서울과의 거리는?", "options": [
-        {"id": "a", "label": "수도권 아니면 안 돼, 한강 뷰는 못 참지", "hint": "서울·경기·인천만", "set": {"where": {"capital": True}}},
-        {"id": "b", "label": "서울은 가끔 놀러 가면 충분", "hint": "상관없음", "set": {}},
+        {"id": "a", "label": "수도권 아니면 안 돼, 한강 뷰는 못 참지", "hint": "서울·경기·인천에 살고 싶어요", "set": {"where": {"capital": True}}},
+        {"id": "b", "label": "서울은 가끔 놀러 가면 충분", "hint": "어디든 괜찮아요", "set": {}},
     ]},
     {"id": "metro", "group": "어디서", "title": "도시의 크기는?", "options": [
-        {"id": "a", "label": "광역시급 생활권, 지하철 소리가 자장가", "hint": "특별·광역시 또는 그와 맞닿은 시군구", "set": {"where": {"metro_area": True}}},
-        {"id": "b", "label": "작은 도시도 시골도 다 좋아", "hint": "상관없음", "set": {}},
+        {"id": "a", "label": "광역시급 생활권, 지하철 소리가 자장가", "hint": "큰 도시의 편리함이 좋아요", "set": {"where": {"metro_area": True}}},
+        {"id": "b", "label": "작은 도시도 시골도 다 좋아", "hint": "어디든 괜찮아요", "set": {}},
     ]},
     {"id": "sea", "group": "어디서", "title": "바다는?", "options": [
-        {"id": "a", "label": "창문 열면 바다 냄새가 나야 해", "hint": "바다와 맞닿은 시군구", "set": {"where": {"coastal": True}}},
-        {"id": "b", "label": "바다는 여행 갈 때만 보면 충분", "hint": "상관없음", "set": {}},
+        {"id": "a", "label": "창문 열면 바다 냄새가 나야 해", "hint": "바닷가 동네에 살고 싶어요", "set": {"where": {"coastal": True}}},
+        {"id": "b", "label": "바다는 여행 갈 때만 보면 충분", "hint": "어디든 괜찮아요", "set": {}},
     ]},
     {"id": "airport", "group": "어디서", "title": "비행기는?", "options": [
-        {"id": "a", "label": "공항까지 1시간 안, 훌쩍 떠나는 게 낙", "hint": "가장 가까운 공항까지 직선 40km 이내 (차로 1시간 안팎)", "set": {"where": {"airport": True}}},
-        {"id": "b", "label": "비행기는 1년에 한 번 탈까 말까", "hint": "상관없음", "set": {}},
+        {"id": "a", "label": "공항까지 1시간 안, 훌쩍 떠나는 게 낙", "hint": "해외여행·출장이 잦아요", "set": {"where": {"airport": True}}},
+        {"id": "b", "label": "비행기는 1년에 한 번 탈까 말까", "hint": "비행기는 거의 안 타요", "set": {}},
     ]},
     {"id": "vibe", "group": "어디서", "title": "동네 분위기는?", "options": [
-        {"id": "a", "label": "논밭과 산이 보이는 조용한 시골", "hint": "군 지역", "set": {"where": {"rural": True}}},
-        {"id": "b", "label": "사람 사는 곳이면 어디든 OK", "hint": "상관없음", "set": {}},
+        {"id": "a", "label": "논밭과 산이 보이는 조용한 시골", "hint": "한적한 시골 마을이 좋아요", "set": {"where": {"rural": True}}},
+        {"id": "b", "label": "사람 사는 곳이면 어디든 OK", "hint": "어디든 괜찮아요", "set": {}},
     ]},
     {"id": "mart", "group": "어디서", "title": "장 볼 때는?", "options": [
-        {"id": "a", "label": "대형마트 카트를 끌어야 장 본 기분", "hint": "대형마트·SSM 조사 점포가 있는 시군구", "set": {"where": {"need_mart": True}}},
-        {"id": "b", "label": "동네 슈퍼·시장이면 충분", "hint": "상관없음", "set": {}},
+        {"id": "a", "label": "대형마트 카트를 끌어야 장 본 기분", "hint": "장은 대형마트에서 한 번에", "set": {"where": {"need_mart": True}}},
+        {"id": "b", "label": "동네 슈퍼·시장이면 충분", "hint": "동네 슈퍼·시장에서 그때그때", "set": {}},
     ]},
 ]
 DEFAULTS = {"living": "a", "family_size": "a", "tenure": "b", "house": "b", "shower": "b", "boiler": "b",
             "aircon": "b", "grocery": "b",
             "dining": "b", "trash": "b", "transit": "a", "capital": "b", "metro": "b", "sea": "b", "airport": "b",
             "vibe": "b", "mart": "b", "drive": "b",
-            "kid_age": "b", "kinder": "b", "elem": "b", "secondary": "b", "academy": "b",
+            "has_kids": "b", "kid_age": "b", "kinder": "b", "elem": "b", "secondary": "b", "academy": "b",
             "library": "b", "museum": "b", "arts": "b", "park": "b"}
 # 지역 조건 ↔ mart.region_features. 조건을 다 맞추는 곳이 MIN_RESULTS 미만이면 앞에서부터 하나씩 뺀다
 WHERE = [  # (키, 화면 이름, 지역이 조건을 맞추는지)
@@ -273,7 +277,7 @@ def normalize(answers):
     """답(질문 id → 'a'/'b') → 계산용 값. 잘못된 답은 ValueError"""
     raw = {**DEFAULTS, **{k: v for k, v in (answers or {}).items() if v is not None}}
     p = {"household": "solo", "tenure": "wolse", "house": "other", "shower": 1.0, "boiler": 1.0, "aircon": 1.0,
-         "grocery": 1.0, "car": False, "km_factor": 1.0, "kid": None, "amenity": {},
+         "grocery": 1.0, "car": False, "km_factor": 1.0, "kids": False, "kid": None, "amenity": {},
          "meals": 12, "bags": 4, "trips": 44, "where": {}}
     for q in QUESTIONS:
         if not visible(q, raw):
