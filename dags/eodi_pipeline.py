@@ -96,10 +96,21 @@ with DAG("eodi_fuel_daily", schedule="30 10 * * *", start_date=START, catchup=Fa
     xwalk = bash("region_xwalk", "python -m pipeline.region_xwalk")
     fuel >> xwalk
 
+# ── K-apt 관리비 (주간) ─────────────────────────────────────
+with DAG("eodi_mgmt_weekly", schedule="0 7 * * 6", start_date=START, catchup=False, max_active_runs=1,
+         default_args=DEFAULTS, tags=["eodi", "mgmt"],
+         doc_md="토요일 07시: K-apt 자료실(금요일 게시) 기본정보·면적정보·관리비정보 엑셀을 받아 적재 → 지역 매핑. "
+                "집계는 eodi_build_mart가 한다."):
+    dl = bash("kapt_download", "python kapt_fee.py download", execution_timeout=pendulum.duration(minutes=30))
+    load = bash("kapt_load", "python -W ignore kapt_fee.py load $(ls -d data/kapt/*/ | sort | tail -1)",
+                execution_timeout=pendulum.duration(minutes=30))
+    xwalk = bash("region_xwalk", "python -m pipeline.region_xwalk")
+    dl >> load >> xwalk
+
 # ── 지도용 집계 (매일 밤) ──────────────────────────────────
 with DAG("eodi_build_mart", schedule="30 23 * * *", start_date=START, catchup=False, max_active_runs=1,
          default_args=DEFAULTS, tags=["eodi", "mart"],
-         doc_md="매일 23:30: sql/mart/*.sql을 다시 만든다 (전월세·공공요금·장바구니·외식비·전기·유가 → 요약). "
+         doc_md="매일 23:30: sql/mart/*.sql을 다시 만든다 (전월세·공공요금·장바구니·외식비·전기·유가·관리비 → 요약). "
                 "외식비(mart.dining_region)는 API가 요약 표와 함께 읽는다."):
     rent = bash("rent", "python -m pipeline.run_sql sql/mart/10_rent.sql")
     utility = bash("utility", "python -m pipeline.run_sql sql/mart/20_utility.sql")
@@ -109,8 +120,9 @@ with DAG("eodi_build_mart", schedule="30 23 * * *", start_date=START, catchup=Fa
     features = bash("region_features", "python -m pipeline.run_sql sql/mart/50_region_features.sql")
     power = bash("power", "python -m pipeline.run_sql sql/mart/60_power.sql")
     fuel = bash("fuel", "python -m pipeline.run_sql sql/mart/70_fuel.sql")
+    mgmt = bash("mgmt", "python -m pipeline.run_sql sql/mart/80_mgmt.sql")
     summary = bash("region_summary", "python -m pipeline.run_sql sql/mart/90_region_summary.sql")
-    [rent, utility, grocery, dining, features, power, fuel] >> summary
+    [rent, utility, grocery, dining, features, power, fuel, mgmt] >> summary
 
 # ── 지역 기준 (연간) ───────────────────────────────────────
 with DAG("eodi_dim_region_yearly", schedule="0 3 20 7 *", start_date=START, catchup=False, max_active_runs=1,

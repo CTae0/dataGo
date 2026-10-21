@@ -23,6 +23,7 @@
 | `good_price` | [행정안전부_착한가격업소 현황](https://www.data.go.kr/data/3045247/fileData.do) | 행정안전부 | 이용허락범위 제한 없음 (표시 의무 없음, 표시 권장) | 출처: 공공데이터포털(data.go.kr) 「행정안전부_착한가격업소 현황」 |
 | `kepco_house_power` | [한국전력공사 전력데이터개방포털 — 가구평균 전력사용량](https://bigdata.kepco.co.kr/cmsmain.do?scode=S01&pcode=000493&pstate=house) | 한국전력공사 | 미확인 (확인 전까지 표시) | 출처: 한국전력공사 전력데이터개방포털 「가구평균 전력사용량」 |
 | `opinet_price` | [한국석유공사 오피넷 — 시군구별 주유소 평균가격](https://www.opinet.co.kr/user/custapi/openApiInfoDtl.do?apiId=7) | 한국석유공사 | **출처 명시 필수** (오피넷 저작권정책) | 출처: 한국석유공사 오피넷(www.opinet.co.kr) |
+| `kapt_fee` | [K-apt 공동주택관리정보시스템 — 관리비공개의무단지 기본·면적·관리비 정보](https://www.k-apt.go.kr/web/board/webReference/boardList.do?boardType=03) | 국토교통부 (운영: 한국부동산원) | 미확인 (확인 전까지 표시) | 출처: 국토교통부 공동주택관리정보시스템(K-apt) |
 
 - 두 표준데이터의 이용조건(저작자표시)은 2026-10-21 활용신청 때 확인한 내용입니다. 데이터셋 페이지에는 따로 표기돼 있지 않습니다.
 - 나머지 두 출처도 공개 전에 포털에서 이용조건을 확인하고 위 표와 `meta.data_source.license`를 채우세요.
@@ -30,6 +31,7 @@
   값 일부는 같은 자료를 옮긴 한국소비자원 참가격 화면으로 바로잡았습니다(`price_src = 'tprice'`). 화면 문구는 행안부 출처 하나로 둡니다.
 - 외식비 원천 조사와 선택 이유: `docs/research/dining_sources.md`
 - `kepco_house_power`는 한전 포털 자체 인증키로 받습니다(data.go.kr 15101404는 링크만). 공개 전에 포털 이용약관을 확인하세요.
+- `kapt_fee`: K-apt 자료실 엑셀(주 1회). 기관 안내상 엑셀은 참고자료이고 정확한 값은 data.go.kr OpenAPI입니다. 공개 전에 이용조건을 확인하세요.
 - `opinet_price`: 오피넷 저작권정책에 따라 출처(석유공사)를 반드시 밝히고 내용을 바꾸지 않습니다. 수익 목적 이용은 사전 협의, 다른 사이트에서 오피넷으로 링크하면 공사에 통지해야 합니다. 공개 전에 확인하세요.
 
 ## 확인용 SQL

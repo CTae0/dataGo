@@ -12,6 +12,7 @@
   mois_dining     raw.mois_dining_price 시도 짧은 이름    예: '충남' → 충남 + 세종 (세종은 충남 값에 포함)
   good_price      raw.good_price_store 시도|시군 (모든 스냅샷)  예: '서울특별시|강남구', '서울|강남구'
   opinet          raw.opinet_sigun_price 오피넷 시군코드    예: '0301'(강원 춘천시), '0201'(경기 수원시 → si), '1901'(세종시)
+  kapt            raw.kapt_complex 시도|시군구          예: '서울특별시|종로구', '경기도|수원장안구'
   kepco_house     raw.kepco_house_power 시도명|시군구명    예: '광주광역시|북구', '경기도|화성시 동탄구', '인천광역시|서구'(legacy)
 국토부 전월세는 LAWD_CD = region_code라서 매핑이 필요 없다.
 """
@@ -107,6 +108,11 @@ class Matcher:
         hit = [r for r in self.rows if r["sido"] == sc and norm(r["raw"]).startswith(n) and r["level"] != "gu"]
         if len(hit) == 1:
             return self._expand(hit[0], "prefix")
+        # '시'를 빼고 붙여 쓴 일반구 ('수원장안구' → 수원시 장안구, K-apt 표기)
+        hit = [r for r in self.rows if r["sido"] == sc and r["level"] == "gu"
+               and norm(r["raw"]).replace("시", "", 1) == n]
+        if len(hit) == 1:
+            return self._expand(hit[0], "si_gu_joined")
         return [], None, "no match"
 
     def _expand(self, r, method):
@@ -156,6 +162,8 @@ def collect(cur):
     cur.execute("SELECT DISTINCT ON (sigun_cd) sigun_cd, sido_nm, sigun_nm FROM raw.opinet_sigun_price "
                 "ORDER BY sigun_cd, snapshot DESC")
     keys += [("opinet", cd, f"{sd} {sg}", "sigungu", sd, sg) for cd, sd, sg in cur.fetchall()]
+    cur.execute("SELECT DISTINCT sido, sigungu FROM raw.kapt_complex")
+    keys += [("kapt", f"{sd}|{sg}", f"{sd} {sg}", "sigungu", sd, sg) for sd, sg in cur.fetchall()]
     cur.execute("SELECT DISTINCT metro_nm, city_nm FROM raw.kepco_house_power")
     keys += [("kepco_house", f"{sd}|{sg}", f"{sd} {sg}", "sigungu", sd, sg) for sd, sg in cur.fetchall()]
     return keys

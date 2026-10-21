@@ -71,4 +71,14 @@ def card(result, features):
     text = (f"{result['sido']} {name}{josa(name, '은', '는')} {intro}. "
             f"예상 생활비는 월 약 {_won_short(result['total'])}으로 {where}. "
             f"가장 큰 몫은 {items[biggest]['label']}(월 {_won_short(items[biggest]['value'])})입니다.")
-    return {"archetype": arch, "nickname": nick, "intro": intro, "facts": facts, "text": text, "level": lv}
+    energy = sum(v["value"] for v in items.values() if v.get("group") == "energy")
+    if energy:
+        with_mgmt = items.get("mgmt", {}).get("value", 0) > 0
+        what = "전기·가스·물" + ("·관리비" if with_mgmt else "")
+        text += f" {what}{josa(what, '은', '는')} 합쳐서 월 약 {_won_short(energy)}이에요."
+    groups = {}
+    for v in items.values():
+        if v.get("group"):
+            groups[v["group"]] = groups.get(v["group"], 0) + v["value"]
+    return {"archetype": arch, "nickname": nick, "intro": intro, "facts": facts, "text": text, "level": lv,
+            "groups": groups}

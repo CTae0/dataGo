@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import TrendChart from './TrendChart.jsx'
+import PowerChart from './PowerChart.jsx'
 import { formatValue, GRAN_LABEL, isFallback } from './format.js'
 
 const UTIL_LABEL = { water_20m3: '상수도 20㎥', sewer_20m3: '하수도 20㎥', trash_20l: '종량제봉투 20ℓ',
@@ -64,6 +65,27 @@ export default function DetailPanel({ code, summary, metrics, sources, onClose, 
             <h3>월 주거비 추이</h3>
             <TrendChart rows={detail.rent_trend} />
           </section>
+
+          <section>
+            <h3>가구 평균 전기요금 <Gran g={summary.power_gran} /></h3>
+            <PowerChart rows={detail.power_trend} />
+            <p className="muted small">주택용 전기를 쓰는 이 지역 가구의 월평균 청구액 (1인~다인 가구 평균, 복지할인 포함)</p>
+          </section>
+
+          {summary.mgmt_per_m2 && (
+            <section>
+              <h3>아파트 관리비 <Gran g={summary.mgmt_gran} /></h3>
+              <dl className="kv">
+                <div><dt>㎡당 월 관리비 (공용+장기수선)</dt><dd>{formatValue(summary.mgmt_per_m2, '원')}</dd></div>
+                <div><dt>전용 59㎡(공급 약 77㎡) 기준</dt><dd>{formatValue(summary.mgmt_per_m2 * 77, '원/월')}</dd></div>
+                <div><dt>전용 84㎡(공급 약 110㎡) 기준</dt><dd>{formatValue(summary.mgmt_per_m2 * 110, '원/월')}</dd></div>
+              </dl>
+              <p className="muted small">
+                {summary.mgmt_complexes ? `관리비 공개 의무단지 ${summary.mgmt_complexes}곳의 중위값` : '이 지역 의무단지가 적어 시도 중위값'}
+                {' '}· 전기·수도·가스 같은 개별사용료 제외
+              </p>
+            </section>
+          )}
 
           <section>
             <h3>공공요금</h3>

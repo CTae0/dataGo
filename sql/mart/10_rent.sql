@@ -53,3 +53,30 @@ SELECT d.region_code, d.size_band, w.from_ym, w.to_ym,
 FROM deals d, win w
 GROUP BY 1, 2, 3, 4;
 ALTER TABLE mart.rent_recent ADD PRIMARY KEY (region_code, size_band);
+
+-- 아파트만: 질문지에서 '아파트파'를 고르면 이 값을 쓴다 (표본이 적으면 모델이 전체 유형 값으로 대체)
+DROP TABLE IF EXISTS mart.rent_recent_apt;
+CREATE TABLE mart.rent_recent_apt AS
+WITH last_ym AS (SELECT max(deal_ym) AS ym FROM raw.molit_rent),
+win AS (
+    SELECT to_char(to_date(ym || '01', 'YYYYMMDD') - interval '11 months', 'YYYYMM') AS from_ym, ym AS to_ym
+    FROM last_ym
+),
+deals AS (
+    SELECT m.lawd_cd AS region_code,
+           CASE WHEN m.area_m2 <= 40 THEN 's' WHEN m.area_m2 <= 60 THEN 'm'
+                WHEN m.area_m2 <= 85 THEN 'l' ELSE 'xl' END AS size_band,
+           coalesce(m.monthly_rent, 0) = 0 AS is_jeonse, m.deposit,
+           coalesce(m.monthly_rent, 0) + m.deposit * 0.055 / 12 AS monthly_cost
+    FROM raw.molit_rent m, win
+    WHERE m.house_type = 'apt' AND m.deal_ym BETWEEN win.from_ym AND win.to_ym
+      AND m.deposit IS NOT NULL AND m.area_m2 > 0
+)
+SELECT d.region_code, d.size_band,
+       count(*)                                                                      AS deals,
+       count(*) FILTER (WHERE is_jeonse)                                             AS jeonse_deals,
+       percentile_cont(0.5) WITHIN GROUP (ORDER BY deposit) FILTER (WHERE is_jeonse) AS jeonse_deposit_median,
+       percentile_cont(0.5) WITHIN GROUP (ORDER BY monthly_cost)                     AS monthly_cost_median
+FROM deals d
+GROUP BY 1, 2;
+ALTER TABLE mart.rent_recent_apt ADD PRIMARY KEY (region_code, size_band);

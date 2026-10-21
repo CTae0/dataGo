@@ -11,6 +11,8 @@
 from math import sqrt
 from statistics import median
 
+from api.power_tariff import bill as power_bill
+
 # ── 근거 통계 (2026-10-21 확인) ─────────────────────────────────
 # [식료품] 국가데이터처 가계동향조사, KOSIS DT_1L9U105 「가구원수별 가구당 월평균 가계수지 (전국,1인이상)」
 #          01.식료품·비주류음료, 전체가구, 2026.1/4와 2026.2/4의 평균 (원/월). 가족은 '4인' 행.
@@ -32,11 +34,24 @@ GAS_MJ_PER_M3 = 42.7
 GAS_UNIT_MJ = 516
 # 가구원 수별 가스 사용량 통계는 찾지 못해, 평균 가구(2.16명) 값을 OECD 제곱근 등가척도(√가구원 수)로 나눈다 — 가정.
 #   1인 2.63 / 2인 3.71 / 4인 5.25 단위
+# [전기] 한전 전력데이터개방포털 「가구평균 전력사용량」 시군구 × 월 (mart.power_region kwh_m01~m12, 최근 12개월)
+#        → 가구원 수 보정(가스와 같은 √ 척도, 평균 2.16명 = 1.0) × 에어컨 문항(7~8월만) → 달마다 주택용 요금표
+#        (api/power_tariff.py, 2024-07-01 시행)로 계산해 12개월 평균. 누진제라 평균 kWh에 단가를 곱하지 않는다.
+SUMMER = (7, 8)
+# [관리비] K-apt 관리비공개의무단지 (mart.mgmt_region): (공용관리비 + 장기수선충당금) ÷ 관리비부과면적 의 시군구 중위값(원/㎡·월)
+#          관리비부과면적은 대개 공급면적 → 면적대 대표 전용면적 × 1.3(전용→공급 환산, 가정)
+BAND_AREA = {"s": 33, "m": 50, "l": 75}   # 면적대(≤40, 40~60, 60~85㎡)의 대표 전용면적
+SUPPLY_RATIO = 1.3
 
 
 def _water_factor(persons):
     """20㎥ 기준 요금에 곱할 배율 = 가구 월 사용량 / 20㎥ (1인 0.30, 2인 0.60, 4인 1.20)"""
     return round(persons * WATER_L_PER_PERSON_DAY * 365 / 12 / 1000 / WATER_BASE_M3, 3)
+
+
+def _elec_factor(persons):
+    """평균 가구(2.16명) 대비 전기 사용량 배율 (1인 0.68, 2인 0.96, 4인 1.36) — 가정"""
+    return round(sqrt(persons) / sqrt(AVG_HOUSEHOLD_SIZE), 2)
 
 
 def _gas_units(persons):
@@ -50,6 +65,7 @@ MIN_DEALS = 10  # 최근 12개월 거래가 이보다 적은 면적대의 중위
 
 HOUSEHOLD = {   # 문항 1
     key: {"persons": n, "band": band, "water": _water_factor(n), "gas_units": _gas_units(n), "trash": trash,
+          "elec": _elec_factor(n), "mgmt_m2": round(BAND_AREA[band] * SUPPLY_RATIO, 1),
           "riders": riders, "eaters": round(DINING_SPEND[n] / DINING_SPEND[1], 2), "grocery_base": round(GROCERY_SPEND[n], -2)}
     for key, n, band, trash, riders in [
         ("solo", 1, "s", 1.0, 1),
@@ -62,6 +78,8 @@ HOUSEHOLD = {   # 문항 1
 # grocery_base: 가구원 수별 월 식료품·비주류음료 지출(원) — [식료품] 근거. 냉장고 문항 배율(0.5/1.0/1.4)을 곱한다
 # trash: 쓰레기봉투 장수(문항 7, 1인 기준)에 곱하는 가구원 보정 (가정)
 # riders: 시내버스를 타는 사람 수 (가정)
+# elec: 지역 가구 평균 전기 사용량에 곱하는 가구원 배율 — [전기] 근거
+# mgmt_m2: 관리비를 매길 공급면적(㎡) — [관리비] 근거
 # eaters: 외식비 배수 — [외식] 근거. 1인 가구 외식비의 몇 배를 쓰는지 (2인 1.28, 4인 2.43)
 
 # 질문지: 질문마다 유머 섞인 A/B 두 답. 답 하나가 모델 값 하나(set)를 정한다.
@@ -79,6 +97,10 @@ QUESTIONS = [
         {"id": "a", "label": "목돈 묻어 두는 전세파", "hint": "전세 보증금 이자(연 5.5%)를 월 비용으로", "set": {"tenure": "jeonse"}},
         {"id": "b", "label": "통장은 가볍게, 월세파", "hint": "보증금+월세를 월 비용으로 환산", "set": {"tenure": "wolse"}},
     ]},
+    {"id": "house", "group": "생활", "title": "우리 집 스타일은?", "options": [
+        {"id": "a", "label": "관리사무소 아저씨와 인사하는 아파트파", "hint": "아파트 · 관리비 포함", "set": {"house": "apt"}},
+        {"id": "b", "label": "관리비 없는 빌라·원룸 자유인", "hint": "빌라·다세대·오피스텔·단독", "set": {"house": "other"}},
+    ]},
     {"id": "shower", "group": "생활", "title": "샤워할 때 물은?", "options": [
         {"id": "a", "label": "부르주아처럼 신경 안 쓰고 콸콸", "hint": "15분 이상 · 하루 두 번도 OK", "set": {"shower": 1.4}},
         {"id": "b", "label": "3분 컷, 군대식 샤워", "hint": "5분 이내", "set": {"shower": 0.8}},
@@ -86,6 +108,10 @@ QUESTIONS = [
     {"id": "boiler", "group": "생활", "title": "한겨울 우리 집 온도는?", "options": [
         {"id": "a", "label": "집이 곧 찜질방, 한겨울에도 반팔", "hint": "보일러 늘 켜 둠", "set": {"boiler": 1.5}},
         {"id": "b", "label": "전기장판과 의리, 보일러는 거의 안 켬", "hint": "외출·취침 땐 끔", "set": {"boiler": 0.7}},
+    ]},
+    {"id": "aircon", "group": "생활", "title": "한여름 에어컨은?", "options": [
+        {"id": "a", "label": "열대야엔 24시간 풀가동, 북극곰 모드", "hint": "7~8월 전기 사용량 1.5배", "set": {"aircon": 1.5}},
+        {"id": "b", "label": "선풍기와 의리, 에어컨은 손님 올 때만", "hint": "7~8월 사용량 0.9배", "set": {"aircon": 0.9}},
     ]},
     {"id": "grocery", "group": "생활", "title": "우리 집 냉장고는?", "options": [
         {"id": "a", "label": "마트 시식 코너 VIP, 늘 꽉 차 있음", "hint": "주 2~3회 장보기", "set": {"grocery": 1.3}},
@@ -128,7 +154,8 @@ QUESTIONS = [
         {"id": "b", "label": "동네 슈퍼·시장이면 충분", "hint": "상관없음", "set": {}},
     ]},
 ]
-DEFAULTS = {"living": "a", "family_size": "a", "tenure": "b", "shower": "b", "boiler": "b", "grocery": "b",
+DEFAULTS = {"living": "a", "family_size": "a", "tenure": "b", "house": "b", "shower": "b", "boiler": "b",
+            "aircon": "b", "grocery": "b",
             "dining": "b", "trash": "b", "transit": "a", "capital": "b", "metro": "b", "sea": "b", "airport": "b",
             "vibe": "b", "mart": "b"}
 # 지역 조건 ↔ mart.region_features. 조건을 다 맞추는 곳이 MIN_RESULTS 미만이면 앞에서부터 하나씩 뺀다
@@ -143,11 +170,17 @@ WHERE = [  # (키, 화면 이름, 지역이 조건을 맞추는지)
 MIN_RESULTS = 3
 AIRPORT_KM = 40   # 직선거리. 도로는 보통 1.3배 → 약 50km, 차로 1시간 안팎
 
-ITEMS = ["housing", "water", "gas", "trash", "transit", "dining", "grocery"]
-ITEM_LABEL = {"housing": "주거", "water": "상하수도", "gas": "도시가스", "trash": "쓰레기봉투",
-              "transit": "버스", "dining": "외식", "grocery": "장보기"}
-ITEM_SOURCE = {"housing": "molit_rent", "water": "std_water_sewage_fee", "gas": "mois_public_fee",
-               "trash": "std_trash_bag_price", "transit": "mois_public_fee", "dining": "mois_dining", "grocery": "kca_price"}
+ITEMS = ["housing", "mgmt", "electricity", "gas", "water", "dining", "grocery", "transit", "trash"]
+ITEM_LABEL = {"housing": "주거", "mgmt": "관리비", "electricity": "전기", "gas": "도시가스", "water": "상하수도",
+              "dining": "외식", "grocery": "장보기", "transit": "버스", "trash": "쓰레기봉투"}
+ITEM_SOURCE = {"housing": "molit_rent", "mgmt": "kapt_fee", "electricity": "kepco_house_power",
+               "gas": "mois_public_fee", "water": "std_water_sewage_fee", "dining": "mois_dining",
+               "grocery": "kca_price", "transit": "mois_public_fee", "trash": "std_trash_bag_price"}
+# 화면 묶음 (카드 막대·범례는 묶음 4색, 펼치면 항목별)
+GROUPS = [{"id": "home", "label": "주거"}, {"id": "energy", "label": "에너지·관리비"},
+          {"id": "food", "label": "먹거리"}, {"id": "etc", "label": "교통·기타"}]
+ITEM_GROUP = {"housing": "home", "mgmt": "energy", "electricity": "energy", "gas": "energy", "water": "energy",
+              "dining": "food", "grocery": "food", "transit": "etc", "trash": "etc"}
 
 
 def visible(q, ans):
@@ -158,7 +191,8 @@ def visible(q, ans):
 def normalize(answers):
     """답(질문 id → 'a'/'b') → 계산용 값. 잘못된 답은 ValueError"""
     raw = {**DEFAULTS, **{k: v for k, v in (answers or {}).items() if v is not None}}
-    p = {"household": "solo", "tenure": "wolse", "shower": 1.0, "boiler": 1.0, "grocery": 1.0,
+    p = {"household": "solo", "tenure": "wolse", "house": "other", "shower": 1.0, "boiler": 1.0, "aircon": 1.0,
+         "grocery": 1.0,
          "meals": 12, "bags": 4, "trips": 44, "where": {}}
     for q in QUESTIONS:
         if not visible(q, raw):
@@ -174,13 +208,21 @@ def normalize(answers):
     return {"answers": {q["id"]: raw[q["id"]] for q in QUESTIONS if visible(q, raw)}, **p}
 
 
-def _housing(r, hh, tenure):
+def _rent(r, band, kind, prefix):
+    """kind 'wolse'|'jeonse', prefix ''(전체 유형) 또는 'apt_'(아파트만) → 원/월 또는 None(표본 부족)"""
+    if kind == "wolse":
+        v, n = r.get(f"cost_{prefix}{band}"), r.get(f"deals_{prefix}{band}")
+        return v * 10_000 if v is not None and (n or 0) >= MIN_DEALS else None
+    v, n = r.get(f"jeonse_{prefix}{band}"), r.get(f"jeonse_deals_{prefix}{band}")
+    return v * 10_000 * RATE / 12 if v is not None and (n or 0) >= MIN_DEALS else None
+
+
+def _housing(r, hh, tenure, house="other"):
+    """아파트파면 아파트 전월세를 먼저 쓰고, 아파트 거래가 적으면 전체 유형 값"""
     band = hh["band"]
-    wol = r.get(f"cost_{band}")
-    wol = wol * 10_000 if wol is not None and (r.get(f"deals_{band}") or 0) >= MIN_DEALS else None
-    jeon = r.get(f"jeonse_{band}")
-    jeon = (jeon * 10_000 * RATE / 12
-            if jeon is not None and (r.get(f"jeonse_deals_{band}") or 0) >= MIN_DEALS else None)
+    prefixes = ["apt_", ""] if house == "apt" else [""]
+    wol = next((v for p in prefixes if (v := _rent(r, band, "wolse", p)) is not None), None)
+    jeon = next((v for p in prefixes if (v := _rent(r, band, "jeonse", p)) is not None), None)
     if tenure == "wolse":
         return wol
     if tenure == "jeonse":
@@ -189,12 +231,29 @@ def _housing(r, hh, tenure):
     return min(vals) if vals else None
 
 
+def _electricity(r, hh, aircon):
+    """달별 지역 평균 kWh × 가구원 배율 × (여름만 에어컨 배수) → 달마다 요금표 → 12개월 평균 (원/월)
+    × 지역 보정(한전 실제 평균 청구액 ÷ 평균 가구를 요금표로 계산한 값).
+      요금표(저압)로만 계산하면 전국 중앙값이 실제보다 약 15% 높다: 아파트 단일계약(고압 요금이 더 쌈)과
+      복지할인이 빠지기 때문. 보정하면 평균 가구는 한전 청구액과 같아지고, 가구원·에어컨 차이는 누진대로 남는다."""
+    kwh = [r.get(f"kwh_m{m:02d}") for m in range(1, 13)]
+    if any(k is None for k in kwh):
+        return None
+    bills = [power_bill(k * hh["elec"] * (aircon if m in SUMMER else 1.0), m) for m, k in enumerate(kwh, 1)]
+    base = sum(power_bill(k, m) for m, k in enumerate(kwh, 1)) / 12
+    calib = min(1.2, max(0.6, r["power_bill"] / base)) if r.get("power_bill") and base else 1.0
+    return sum(bills) / 12 * calib
+
+
 def estimate(r, answers):
     """지역 행 1개 → {항목: 원/월 또는 None}. answers는 normalize() 결과"""
     a = answers
     hh = HOUSEHOLD[a["household"]]
     out = {
-        "housing": _housing(r, hh, a["tenure"]),
+        "housing": _housing(r, hh, a["tenure"], a["house"]),
+        "mgmt": ((r["mgmt_per_m2"] * hh["mgmt_m2"] if r.get("mgmt_per_m2") else None)
+                 if a["house"] == "apt" else 0),
+        "electricity": _electricity(r, hh, a["aircon"]),
         "water": r["water_sewer"] * hh["water"] * a["shower"] if r.get("water_sewer") else None,
         "gas": r["gas_total"] * hh["gas_units"] * a["boiler"] if r.get("gas_total") else None,
         "trash": r["trash_20l"] * a["bags"] * hh["trash"] if r.get("trash_20l") else None,
@@ -206,20 +265,25 @@ def estimate(r, answers):
     return {k: (round(v) if v is not None else None) for k, v in out.items()}
 
 
-GRAN_FIELD = {"housing": None, "water": "water_sewer_gran", "gas": None, "trash": "trash_gran",
-              "transit": None, "dining": "dining_gran", "grocery": "grocery_gran"}
+GRAN_FIELD = {"housing": None, "mgmt": "mgmt_gran", "electricity": "power_gran", "water": "water_sewer_gran",
+              "gas": None, "trash": "trash_gran", "transit": None, "dining": "dining_gran", "grocery": "grocery_gran"}
 SIDO_LEVEL = {"gas", "transit"}   # 원천 자체가 시도 평균
 
 
-def _items(r, e, by_sido, nat):
+def _items(r, e, by_sido, nat, house="other"):
     items = {}
     for k in ITEMS:
         v, filled = e[k], False
+        if k == "mgmt" and house != "apt":   # 빌라·원룸파: 관리비 해당 없음 (0원, 채우지 않음)
+            items[k] = {"label": ITEM_LABEL[k], "value": 0, "filled": False, "gran": None,
+                        "source": ITEM_SOURCE[k], "group": ITEM_GROUP[k], "na": True}
+            continue
         if v is None:
             pool = by_sido.get((r["sido"], k)) or nat.get(k)
             v, filled = (round(median(pool)) if pool else 0), True
         gran = "sido" if k in SIDO_LEVEL else (r.get(GRAN_FIELD[k]) if GRAN_FIELD[k] else "exact")
-        items[k] = {"label": ITEM_LABEL[k], "value": v, "filled": filled, "gran": gran, "source": ITEM_SOURCE[k]}
+        items[k] = {"label": ITEM_LABEL[k], "value": v, "filled": filled, "gran": gran, "source": ITEM_SOURCE[k],
+                    "group": ITEM_GROUP[k]}
     return items
 
 
@@ -233,12 +297,12 @@ def recommend(regions, answers):
     by_sido, nat = {}, {}
     for r in regions:
         for k, v in est[r["region_code"]].items():
-            if v is not None:
+            if v is not None and not (k == "mgmt" and a["house"] != "apt"):
                 by_sido.setdefault((r["sido"], k), []).append(v)
                 nat.setdefault(k, []).append(v)
     everyone = []
     for r in regions:
-        items = _items(r, est[r["region_code"]], by_sido, nat)
+        items = _items(r, est[r["region_code"]], by_sido, nat, a["house"])
         everyone.append({"region_code": r["region_code"], "sido": r["sido"], "sigungu": r["sigungu"],
                          "total": sum(i["value"] for i in items.values()), "items": items, "_row": r})
     everyone.sort(key=lambda x: (x["total"], x["region_code"]))
@@ -259,11 +323,14 @@ def recommend(regions, answers):
     hh = HOUSEHOLD[a["household"]]
     assumptions = {
         "rate": RATE, "household": hh,
-        "params": {k: a[k] for k in ("tenure", "shower", "boiler", "grocery", "meals", "bags", "trips")},
+        "params": {k: a[k] for k in ("tenure", "house", "shower", "boiler", "aircon", "grocery", "meals", "bags",
+                                     "trips")},
         "where": [label for key, label, _ in WHERE if a["where"].get(key) and label not in relaxed],
         "relaxed": relaxed,
         "notes": [
-            "주거비는 최근 12개월 실거래 중위값이고, 전세는 보증금 이자(연 5.5%)로 환산했습니다.",
+            "주거비는 최근 12개월 실거래 중위값이고, 전세는 보증금 이자(연 5.5%)로 환산했습니다. 아파트파는 아파트 거래만 보고, 아파트 거래가 적은 곳은 전체 유형 값을 씁니다.",
+            "관리비(아파트파만)는 K-apt 관리비 공개 의무단지의 ㎡당 공용관리비+장기수선충당금 시군구 중위값에 공급면적(면적대 대표 전용면적 × 1.3, 가정)을 곱했습니다. 전기·수도·가스 같은 개별사용료는 다른 항목에 따로 있어 뺐습니다.",
+            "전기는 한전 시군구 가구 평균 월별 사용량(최근 12개월)에 가구원 수 배율(가정)과 여름 에어컨 답을 반영해, 달마다 주택용 누진 요금표(2024-07-01)로 계산하고, 지역의 한전 실제 평균 청구액에 맞춰 보정한 값입니다 (아파트 단일계약·복지할인 반영).",
             "상하수도는 기본요금이 빠져 있어 실제보다 조금 낮습니다.",
             "도시가스·버스는 시도 평균 요금, 외식비는 시도 평균 가격입니다. 가구원 수에 따른 외식비 배수는 가계동향조사 음식·숙박 지출 비율(1인 대비 2인 1.28배, 4인 2.43배)을 썼습니다.",
             "장보기는 가구원 수별 식료품비(국가데이터처 가계동향조사 2026년 1~2분기)에 지역 장바구니 지수를 곱한 값입니다 (대형마트·SSM 기준).",

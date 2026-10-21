@@ -5,6 +5,7 @@ import DetailPanel from './DetailPanel.jsx'
 import Attribution from './Attribution.jsx'
 import Questionnaire from './Questionnaire.jsx'
 import Results from './Results.jsx'
+import Home from './Home.jsx'
 import { quantileBreaks } from './format.js'
 
 async function getJSON(url, opts) {
@@ -26,11 +27,20 @@ function writeAnswers(a) {
   else url.searchParams.delete('a')
   history.replaceState(null, '', url)
 }
+// 첫 화면은 '/', 지도는 '?view=map'
+const startMode = () => (new URLSearchParams(location.search).get('view') === 'map' ? 'explore' : 'home')
+function writeView(mode) {
+  const url = new URL(location.href)
+  if (mode === 'explore') url.searchParams.set('view', 'map')
+  else url.searchParams.delete('view')
+  history.replaceState(null, '', url)
+}
 
 const EST_METRIC = {
-  id: 'est_total', label: '내 예상 월 생활비', detail: '답변으로 계산한 주거·공공요금·교통·외식·장보기 합계 (조건 밖 지역은 회색)',
+  id: 'est_total', label: '내 예상 월 생활비', detail: '답변으로 계산한 주거·관리비·전기·가스·물·외식·장보기·교통 합계 (조건 밖 지역은 회색)',
   unit: '원/월', field: 'est_total', gran: null, better: 'low',
-  sources: ['molit_rent', 'std_water_sewage_fee', 'std_trash_bag_price', 'mois_public_fee', 'mois_dining', 'kca_price'],
+  sources: ['molit_rent', 'kapt_fee', 'kepco_house_power', 'std_water_sewage_fee', 'std_trash_bag_price',
+            'mois_public_fee', 'mois_dining', 'kca_price'],
 }
 
 export default function App() {
@@ -41,7 +51,8 @@ export default function App() {
   const [spec, setSpec] = useState(null)         // /api/questions
   const [metricId, setMetricId] = useState('cost_s')
   const [selected, setSelected] = useState(null)
-  const [mode, setMode] = useState('explore')    // explore | quiz | results
+  const [mode, setModeRaw] = useState(startMode) // home | explore | quiz | results
+  const setMode = (m) => { setModeRaw(m); writeView(m) }
   const [answers, setAnswers] = useState(readAnswers)
   const [rec, setRec] = useState(null)           // /api/recommend 응답
   const [error, setError] = useState(null)
@@ -91,11 +102,12 @@ export default function App() {
 
   const finishQuiz = (a) => { writeAnswers(a); setSelected(null); setAnswers({ ...a }) }
   const backToMap = () => { writeAnswers(null); setAnswers(null); setRec(null); setMode('explore'); setSelected(null) }
+  const goHome = () => { writeAnswers(null); setAnswers(null); setRec(null); setMode('home'); setSelected(null) }
 
   return (
     <div className="app">
       <header className="topbar">
-        <h1>어디 살까?</h1>
+        <h1><button type="button" className="brand" onClick={goHome}>어디 살까?</button></h1>
         {mode === 'explore' && (
           <>
             <button type="button" className="primary" onClick={() => setMode('quiz')} disabled={!spec}>나한테 맞는 동네 찾기</button>
@@ -112,12 +124,15 @@ export default function App() {
           </>
         )}
         {inResults && <button type="button" className="secondary" onClick={backToMap}>지표 지도로</button>}
-        {metric && mode !== 'quiz' && <p className="metric-detail">{metric.detail}</p>}
+        {metric && (mode === 'explore' || inResults) && <p className="metric-detail">{metric.detail}</p>}
+        {mode === 'home' && <button type="button" className="secondary topbar-right" onClick={() => setMode('explore')}>지도로 둘러보기</button>}
       </header>
 
-      {mode === 'quiz' && spec ? (
+      {mode === 'home' && !inResults ? (
+        <Home spec={spec} onStart={() => setMode('quiz')} onMap={() => setMode('explore')} />
+      ) : mode === 'quiz' && spec ? (
         <main className="body quiz-body">
-          <Questionnaire spec={spec} initial={answers} onDone={finishQuiz} onCancel={() => setMode(rec ? 'results' : 'explore')} />
+          <Questionnaire spec={spec} initial={answers} onDone={finishQuiz} onCancel={() => setMode(rec ? 'results' : 'home')} />
         </main>
       ) : (
         <main className="body">
@@ -147,7 +162,9 @@ export default function App() {
         </main>
       )}
 
-      <Attribution sources={sources} active={[...(metric?.sources || (metric ? [metric.source] : [])), 'vworld_sigungu']} />
+      <Attribution sources={sources}
+                   active={mode === 'home' ? EST_METRIC.sources
+                     : [...(metric?.sources || (metric ? [metric.source] : [])), 'vworld_sigungu']} />
     </div>
   )
 }

@@ -10,6 +10,7 @@
 --   3) 월 값 = 가구 수 가중 평균 (kWh, 원). mart.power_monthly에 달마다 남긴다.
 --   4) mart.power_region = leaf별 최근 12개월(받은 마지막 달 기준) 평균, 여름(7~8월)·겨울(12~2월) 평균.
 --      12개월이 다 없는 leaf(새로 생긴 구)는 있는 달만으로 평균 내고 months에 개월 수를 남긴다.
+--      kwh_m01~kwh_m12 = 같은 12개월을 달 이름으로 펼친 값 (빈 달은 NULL).
 -- 주의: 한전 '평균 전기요금'은 주택용 전 가구 평균이다 (1인~다인 가구 섞임, 복지할인 반영된 청구액).
 --      가구원 수별 값은 이 원천에 없다 → 가구원 수 보정은 api/cost_model.py에서 따로 한다.
 
@@ -55,7 +56,20 @@ SELECT r.region_code,
        round(avg(w.bill) FILTER (WHERE right(w.ym, 2) IN ('07', '08')))::int    AS power_bill_summer,
        round(avg(w.power_kwh) FILTER (WHERE right(w.ym, 2) IN ('12', '01', '02')), 1) AS power_kwh_winter,
        round(avg(w.bill) FILTER (WHERE right(w.ym, 2) IN ('12', '01', '02')))::int    AS power_bill_winter,
-       max(w.house_cnt) FILTER (WHERE w.ym = (SELECT ym FROM last))             AS house_cnt
+       max(w.house_cnt) FILTER (WHERE w.ym = (SELECT ym FROM last))             AS house_cnt,
+       -- 달별 사용량 (최근 12개월을 달 이름으로 펼침). 모델이 달마다 요금표를 적용한다 (api/power_tariff.py)
+       round(avg(w.power_kwh) FILTER (WHERE right(w.ym, 2) = '01'), 1) AS kwh_m01,
+       round(avg(w.power_kwh) FILTER (WHERE right(w.ym, 2) = '02'), 1) AS kwh_m02,
+       round(avg(w.power_kwh) FILTER (WHERE right(w.ym, 2) = '03'), 1) AS kwh_m03,
+       round(avg(w.power_kwh) FILTER (WHERE right(w.ym, 2) = '04'), 1) AS kwh_m04,
+       round(avg(w.power_kwh) FILTER (WHERE right(w.ym, 2) = '05'), 1) AS kwh_m05,
+       round(avg(w.power_kwh) FILTER (WHERE right(w.ym, 2) = '06'), 1) AS kwh_m06,
+       round(avg(w.power_kwh) FILTER (WHERE right(w.ym, 2) = '07'), 1) AS kwh_m07,
+       round(avg(w.power_kwh) FILTER (WHERE right(w.ym, 2) = '08'), 1) AS kwh_m08,
+       round(avg(w.power_kwh) FILTER (WHERE right(w.ym, 2) = '09'), 1) AS kwh_m09,
+       round(avg(w.power_kwh) FILTER (WHERE right(w.ym, 2) = '10'), 1) AS kwh_m10,
+       round(avg(w.power_kwh) FILTER (WHERE right(w.ym, 2) = '11'), 1) AS kwh_m11,
+       round(avg(w.power_kwh) FILTER (WHERE right(w.ym, 2) = '12'), 1) AS kwh_m12
 FROM dim.region r
 JOIN w ON w.region_code = r.region_code
 WHERE r.is_leaf

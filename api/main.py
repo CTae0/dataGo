@@ -7,7 +7,7 @@
 엔드포인트
     GET /api/metrics            지도에 칠할 수 있는 지표 목록 (단위, 낮을수록 좋은지)
     GET /api/regions            시군구(leaf) 256곳 요약 — 지도 색칠용
-    GET /api/regions/{code}     한 시군구 상세 (전월세 추이, 공공요금 후보, 장바구니 분류, 외식비)
+    GET /api/regions/{code}     한 시군구 상세 (전월세·전기 추이, 공공요금 후보, 장바구니 분류, 외식비)
     GET /api/sources            출처 표시 문구 (meta.data_source) — 화면 하단·푸터에 반드시 표시
 
 모든 값에는 *_gran(정밀도: exact/si/legacy/sido_part/sido)이 붙는다.
@@ -51,6 +51,12 @@ METRICS = [
     {"id": "meal_index", "label": "외식비", "detail": "일상 한 끼 5종(냉면·비빔밥·김치찌개 백반·짜장면·칼국수) 평균, 16개 시도 평균 = 100 (시도 단위)",
      "unit": "지수", "field": "meal_index", "gran": "dining_gran", "better": "low", "group": "외식비",
      "source": "mois_dining", "sources": ["mois_dining"]},
+    {"id": "power_bill", "label": "가구 평균 전기요금", "detail": "주택용 전기 쓰는 가구의 월평균 청구액 (최근 12개월, 한전)",
+     "unit": "원/월", "field": "power_bill", "gran": "power_gran", "better": "low", "group": "에너지·관리비",
+     "source": "kepco_house_power", "sources": ["kepco_house_power"]},
+    {"id": "mgmt_per_m2", "label": "아파트 ㎡당 관리비", "detail": "공용관리비+장기수선충당금 ÷ 관리비부과면적, 의무단지 중위값 (최근 12개월, K-apt)",
+     "unit": "원/㎡·월", "field": "mgmt_per_m2", "gran": "mgmt_gran", "better": "low", "group": "에너지·관리비",
+     "source": "kapt_fee", "sources": ["kapt_fee"]},
 ]
 GRAN_RANK = {"exact": 0, "si": 1, "legacy": 2, "sido_part": 3, "sido": 4}
 
@@ -164,15 +170,23 @@ def region_detail(code: str):
                 for k, v in list(dining.items()):
                     if hasattr(v, "isoformat"):
                         dining[k] = v.isoformat()
-    return {"summary": rows[0], "rent_trend": trend, "utility": utility, "grocery": grocery, "dining": dining}
+        power_trend = []
+        if table_exists(cur, "mart.power_monthly"):   # 한전 가구 평균 사용량·청구액, 최근 24개월
+            cur.execute("""SELECT ym, power_kwh, bill FROM mart.power_monthly WHERE region_code = %s
+                           ORDER BY ym DESC LIMIT 24""", (code,))
+            power_trend = [{"ym": r["ym"], "power_kwh": num(r["power_kwh"]), "bill": num(r["bill"])}
+                           for r in reversed(cur.fetchall())]
+    return {"summary": rows[0], "rent_trend": trend, "power_trend": power_trend, "utility": utility,
+            "grocery": grocery, "dining": dining}
 
 
 @app.get("/api/questions")
 def questions():
     """질문지 정의 (문구·작은 글씨 기준·기본값). 문구는 api/cost_model.py의 QUESTIONS에서 고친다."""
     return {"questions": cost_model.QUESTIONS, "defaults": cost_model.DEFAULTS,
-            "items": [{"id": k, "label": cost_model.ITEM_LABEL[k], "source": cost_model.ITEM_SOURCE[k]}
-                      for k in cost_model.ITEMS]}
+            "items": [{"id": k, "label": cost_model.ITEM_LABEL[k], "source": cost_model.ITEM_SOURCE[k],
+                       "group": cost_model.ITEM_GROUP[k]} for k in cost_model.ITEMS],
+            "groups": cost_model.GROUPS}
 
 
 @app.post("/api/recommend")

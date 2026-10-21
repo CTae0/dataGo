@@ -235,6 +235,45 @@ docker compose exec db psql -U eodi -d eodi -f /sql/load_public_fee.sql
 - 출처: `meta.data_source` 'mois_dining'(이용조건 미확인 → 표시), 'good_price'(제한 없음). `ATTRIBUTION.md` 갱신
 - 테이블: `sql/init/07_dining.sql` (기존 DB는 `sql/migrations/004_dining.sql`, 적용함)
 
+## 2026-10-22 전기·관리비·유가 + 퀴즈·첫 화면 개편
+
+**새 원천** (모두 전국, 매핑 못 한 키 0개)
+
+| 원천 | 수집 | 집계 | DAG |
+|---|---|---|---|
+| 한전 가구평균 전력사용량 (2014~) | `kepco_power.py` | `mart.power_region`(월별 `kwh_m01..12`) | `eodi_power_monthly` |
+| 오피넷 시군구 유가 (하루 스냅샷) | `opinet_price.py` | `mart.fuel_region` | `eodi_fuel_daily` |
+| K-apt 의무단지 기본·면적·관리비 엑셀 (주 1회) | `kapt_fee.py download / load` | `mart.mgmt_region` (㎡당 공용+장기수선 중위값) | `eodi_mgmt_weekly` |
+
+- **한전:** 시군구 이름만 와요. 광주·전남은 2026-06까지 옛 코드(29·46)로 와요.
+- **오피넷:** 인증키 파라미터 이름이 `code`예요. 하루 300회 한도예요.
+- **K-apt:**
+  - 첨부는 '방금 연 글' 기준으로 받아서, 글마다 다시 열어야 해요.
+  - 엑셀은 표준 라이브러리로 읽어요 (Airflow 이미지에 openpyxl이 없어요).
+  - 일반구가 '수원장안구'처럼 붙어 있어서 `region_xwalk`에 `si_gu_joined` 규칙을 추가했어요.
+- **요약 표:** 아파트만의 전월세(`cost_apt_*`), 전기, 관리비 칸을 추가했어요.
+
+**모델** (`api/cost_model.py`)
+- **새 질문:** `house`(아파트파/빌라·원룸파), `aircon`(여름 에어컨).
+- **새 항목:** `mgmt`(아파트파만), `electricity`.
+  - 전기는 달마다 요금표(`api/power_tariff.py`)로 계산하고, 지역 한전 평균 청구액 ÷ 평균 가구 요금표 값으로 보정해요.
+  - 보정 전에는 요금표 값이 실제 청구액보다 전국 중앙값 기준 15% 높았어요 (아파트 단일계약·복지할인 때문).
+- **아파트파:** 아파트 전월세를 먼저 쓰고, 거래가 `MIN_DEALS` 미만이면 전체 유형 값을 써요.
+- **화면 묶음:** `GROUPS`/`ITEM_GROUP` (주거 / 에너지·관리비 / 먹거리 / 교통·기타).
+
+**화면** (`web/src`)
+- 첫 화면 `Home.jsx`(퀴즈 먼저). 지도는 `?view=map`, 결과는 `?a=`.
+- 퀴즈에 묶음별 진행 표시와 키보드 A/B 선택을 추가했어요.
+- 결과 카드는 묶음 4색 막대 + '항목별로 보기' + 에너지·관리비 줄이에요.
+- 상세 패널에 전기요금 24개월 막대(`PowerChart.jsx`)와 관리비 칸을 추가했어요.
+- 지도 지표에 '가구 평균 전기요금', '아파트 ㎡당 관리비'를 추가했어요.
+
+**남은 가정**
+- 관리비 공급면적 = 대표 전용면적 × 1.3
+- 전기 가구원 배율은 √ 척도
+- 에어컨 배수 1.5 / 0.9
+- 유가는 아직 모델에 넣지 않았어요 (자가용 질문은 다음 단계).
+
 ## 다음 작업
 1. **V-World 인증키 발급(사용자)** → `.env`에 `VWORLD_API_KEY`. 시군구 경계 LT_C_ADSIGG_INFO(현행, GeoJSON)를 받아 PostGIS에 적재.
    (data.go.kr 경계 원천들은 2025년 기준이라 2026 인천·화성 개편이 빠짐)

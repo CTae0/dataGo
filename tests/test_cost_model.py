@@ -61,10 +61,10 @@ def test_family_question_only_when_living_together():
     assert ans(**DUO)["household"] == "duo" and ans(**FAMILY)["household"] == "family"
 
 
-@pytest.mark.parametrize("qid,item", [("shower", "water"), ("boiler", "gas"), ("grocery", "grocery"),
+@pytest.mark.parametrize("qid,item", [("shower", "water"), ("boiler", "gas"), ("grocery", "grocery"), ("aircon", "electricity"),
                                       ("dining", "dining"), ("trash", "trash"), ("transit", "transit")])
 def test_each_lifestyle_question_moves_only_its_item(qid, item):
-    a, b = cm.estimate(CHUNCHEON, ans(**{qid: "a"})), cm.estimate(CHUNCHEON, ans(**{qid: "b"}))
+    a, b = cm.estimate(CHUNCHEON_FULL, ans(**{qid: "a"})), cm.estimate(CHUNCHEON_FULL, ans(**{qid: "b"}))
     for k in cm.ITEMS:
         assert (a[k] != b[k]) == (k == item), (qid, k)
 
@@ -152,3 +152,57 @@ def test_card_text_and_level():
     assert describe.level(5)["name"] == "통장 수비 만렙" and describe.level(100)["name"] == "지갑 주의보"
     sea = describe.card(res[0], YANGYANG)
     assert any("해안선" in f for f in sea["facts"]) and any("양양공항" in f for f in sea["facts"])
+
+
+# ── 전기·관리비·집 유형 (2026-10-22) ──────────────────────────
+KWH = {f"kwh_m{m:02d}": (320.0 if m in (7, 8) else 240.0) for m in range(1, 13)}
+CHUNCHEON_FULL = {**CHUNCHEON, **KWH, "power_gran": "exact", "mgmt_per_m2": 1380.0, "mgmt_gran": "exact",
+                  "cost_apt_s": 55.0, "deals_apt_s": 120, "jeonse_apt_s": 9000.0, "jeonse_deals_apt_s": 50}
+
+
+def test_electricity_by_hand_with_tariff():
+    from api.power_tariff import bill
+    e = cm.estimate(CHUNCHEON_FULL, ans(**SOLO))                    # 1인 0.68배, 에어컨 b 0.9배(여름만)
+    hand = sum(bill(v * 0.68 * (0.9 if m in (7, 8) else 1.0), m)
+               for m, v in ((int(k[-2:]), x) for k, x in KWH.items())) / 12
+    assert e["electricity"] == round(hand)                          # power_bill 없음 → 보정 1.0
+
+
+def test_aircon_changes_only_summer_electricity():
+    a = cm.estimate(CHUNCHEON_FULL, ans(aircon="a"))
+    b = cm.estimate(CHUNCHEON_FULL, ans(aircon="b"))
+    assert a["electricity"] > b["electricity"]
+    assert all(a[k] == b[k] for k in cm.ITEMS if k != "electricity")
+    winter_only = {**CHUNCHEON_FULL, "kwh_m07": None}                # 달 하나라도 없으면 계산하지 않음 → 채움 대상
+    assert cm.estimate(winter_only, ans())["electricity"] is None
+
+
+def test_house_question_adds_mgmt_and_switches_to_apartment_rent():
+    villa = cm.estimate(CHUNCHEON_FULL, ans(**SOLO, house="b"))
+    apt = cm.estimate(CHUNCHEON_FULL, ans(**SOLO, house="a"))
+    assert villa["mgmt"] == 0 and villa["housing"] == 406_000
+    assert apt["mgmt"] == round(1380 * 33 * 1.3)                       # ㎡당 × (대표 전용 33㎡ × 1.3)
+    assert apt["housing"] == 550_000                                   # 아파트 월세 중위값
+    thin = {**CHUNCHEON_FULL, "deals_apt_s": cm.MIN_DEALS - 1}       # 아파트 거래가 적으면 전체 유형 값
+    assert cm.estimate(thin, ans(**SOLO, house="a"))["housing"] == 406_000
+
+
+def test_mgmt_not_applicable_is_zero_and_not_filled():
+    regions = [CHUNCHEON_FULL, {**GANGNAM, **KWH, "mgmt_per_m2": None}, YANGYANG]
+    res, _, _ = cm.recommend(regions, {**SOLO, "house": "b"})
+    for x in res:
+        assert x["items"]["mgmt"]["value"] == 0 and x["items"]["mgmt"].get("na")
+    res, _, _ = cm.recommend(regions, {**SOLO, "house": "a"})
+    g = next(x for x in res if x["region_code"] == "11680")
+    assert g["items"]["mgmt"]["filled"] and g["items"]["mgmt"]["value"] == round(1380 * 33 * 1.3)  # 다른 지역 값으로 채움
+    assert all(x["items"][k]["group"] == cm.ITEM_GROUP[k] for x in res for k in cm.ITEMS)
+    assert {g["id"] for g in cm.GROUPS} == set(cm.ITEM_GROUP.values())
+
+
+def test_electricity_calibrated_to_kepco_average_bill():
+    from api.power_tariff import bill
+    base = sum(bill(v, int(k[-2:])) for k, v in KWH.items()) / 12
+    r = {**CHUNCHEON_FULL, "power_bill": round(base * 0.85)}          # 실제 청구액이 요금표보다 15% 낮은 지역
+    avg_household = cm._electricity(r, {"elec": 1.0}, 1.0)
+    assert avg_household == pytest.approx(r["power_bill"], abs=1)     # 평균 가구 = 한전 평균 청구액
+    assert cm._electricity(r, {"elec": 1.36}, 1.5) > avg_household * 1.36   # 누진: 많이 쓰면 비례보다 더 비싸다

@@ -197,7 +197,13 @@ html, body, #root { height: 100%; margin: 0; }
 /* ── 결과 카드 3장 ── */
 .podium { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); margin: 12px 0; }
 .pcard { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: 14px; overflow: hidden;
-         background: var(--surface-0); text-align: left; font: inherit; padding: 0; cursor: pointer; }
+         background: var(--surface-0); text-align: left; font: inherit; padding: 0; }
+.pcard-main { display: flex; flex-direction: column; text-align: left; font: inherit; padding: 0; border: none;
+              background: none; cursor: pointer; color: inherit; }
+.pcard-toggle { align-self: flex-start; margin: 0 10px 10px; }
+.pcard-detail { display: grid; gap: 8px; padding: 0 14px 14px; }
+.pcard-energy { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-secondary);
+                font-variant-numeric: tabular-nums; }
 .pcard:hover, .pcard.on { border-color: var(--accent); box-shadow: 0 4px 14px rgba(42, 120, 214, 0.15); }
 .pcard-art { position: relative; aspect-ratio: 16 / 9; background: #e8f3ff; }
 .pcard-rank { position: absolute; top: 8px; left: 8px; background: rgba(255, 255, 255, 0.92); border-radius: 999px;
@@ -218,3 +224,36 @@ html, body, #root { height: 100%; margin: 0; }
 .panel.wide .podium { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 @media (max-width: 900px) { .panel.wide .podium { grid-template-columns: 1fr; } }
 @media (max-width: 760px) { .panel.wide { width: 100%; } }
+
+/* ── 묶음 막대 펼침 ── */
+.swatch.sm { width: 10px; height: 10px; border-radius: 2px; }
+.breakdown { display: grid; gap: 8px; font-size: 12px; }
+.bd-head { display: flex; align-items: center; gap: 6px; font-weight: 600; }
+.bd-head strong { margin-left: auto; font-variant-numeric: tabular-nums; }
+.breakdown ul { list-style: none; margin: 4px 0 0; padding: 0 0 0 16px; display: grid; gap: 2px; color: var(--text-secondary); }
+.breakdown li { display: flex; align-items: center; gap: 6px; }
+.breakdown li span:last-child { margin-left: auto; font-variant-numeric: tabular-nums; }
+.breakdown li.na { color: var(--text-muted); }
+.item-legend li .muted { margin-left: 2px; }
+
+/* ── 첫 화면 ── */
+.brand { font: inherit; font-weight: 700; border: none; background: none; padding: 0; cursor: pointer; color: inherit; }
+.topbar-right { margin-left: auto; }
+.home-body { overflow-y: auto; }
+.home { width: 100%; max-width: 960px; margin: 0 auto; padding: 32px 16px 40px; display: grid; gap: 28px; align-content: start; }
+.hero { display: grid; gap: 12px; }
+.hero-kicker { margin: 0; font-size: 13px; font-weight: 600; color: var(--accent); }
+.hero-title { margin: 0; font-size: clamp(26px, 5vw, 40px); line-height: 1.25; letter-spacing: -0.01em; }
+.hero-sub { margin: 0; max-width: 620px; font-size: 16px; line-height: 1.6; color: var(--text-secondary); }
+.hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-top: 4px; }
+.primary.big { font-size: 17px; padding: 12px 22px; border-radius: 10px; }
+.link.big { font-size: 15px; }
+.home-groups { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+.hg { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 2px 8px; padding: 12px 14px;
+      border: 1px solid var(--border); border-radius: 12px; background: var(--surface-1); }
+.hg .small { grid-column: 1 / -1; }
+.home-sample h3 { font-size: 15px; margin: 0 0 4px; }
+.pcard.mini .pcard-body { gap: 2px; padding: 10px 12px 12px; }
+.pcard.mini .pcard-name { font-size: 16px; }
+.kbd-hint { margin-top: 12px; }
+@media (max-width: 520px) { .kbd-hint { display: none; } .home { padding-top: 20px; } }
