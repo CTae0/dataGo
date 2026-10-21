@@ -110,8 +110,8 @@ function PodiumCard({ spec, x, selected, onSelect }) {
 export default function Results({ spec, data, onSelect, selected, onRestart }) {
   const [asTable, setAsTable] = useState(false)
   const answers = data.answers.answers || {}
-  const top = data.results.slice(0, 3)
-  const rest = data.results.slice(3)
+  const top = data.results.slice(0, 1)   // 1위 카드 하나만 크게, 2위부터는 목록
+  const rest = data.results.slice(1)
   const asm = data.assumptions
   const cols = spec.items.filter((it) => !data.results[0]?.items[it.id]?.na)   // 해당 없는 항목(관리비·기름값)은 표에서 뺀다
 
@@ -128,7 +128,7 @@ export default function Results({ spec, data, onSelect, selected, onRestart }) {
 
       {data.count > 0 && (
         <>
-          <div className="podium">
+          <div className="podium single">
             {top.map((x) => <PodiumCard key={x.region_code} spec={spec} x={x} selected={selected === x.region_code} onSelect={onSelect} />)}
           </div>
 
@@ -162,9 +162,9 @@ export default function Results({ spec, data, onSelect, selected, onRestart }) {
             </div>
           )}
           {!asTable && rest.length > 0 && (
-            <details className="rest">
-              <summary>4위부터 {rest.length}곳 더 보기</summary>
-              <ol start={4}>
+            <details className="rest" open>
+              <summary>2위부터 {rest.length}곳 더 보기</summary>
+              <ol start={2}>
                 {rest.map((x) => (
                   <li key={x.region_code}><button type="button" className="link" onClick={() => onSelect(x.region_code)}>{x.sido} {x.sigungu}</button> 월 약 {manwon(x.total)}</li>
                 ))}

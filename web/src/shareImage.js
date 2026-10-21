@@ -1,4 +1,4 @@
-// 결과 공유 이미지 (1080×1350 PNG). 라이브러리 없이 canvas로 그린다.
+// 결과 공유 이미지 (1080×1350 PNG, 1위 카드 하나). 라이브러리 없이 canvas로 그린다.
 // 카드 그림은 화면에 이미 있는 Scene SVG를 그대로 옮겨 그린다 (애니메이션은 멈춘 한 장면).
 // 출처 표시: 공공데이터 원천을 한 줄로 밝힌다 (ATTRIBUTION.md — 오피넷은 출처 명시 필수).
 import { GROUP_COLOR } from './format.js'
@@ -48,7 +48,7 @@ function wrap(ctx, text, maxWidth, maxLines) {
 }
 
 /**
- * @param results 추천 결과 위 3개 (/api/recommend results[0..2], card 포함)
+ * @param results 추천 결과 (/api/recommend results, card 포함) — 1위만 그린다
  * @param groups  spec.groups [{id, label}]
  * @param persona 페르소나 한 줄
  * @param sceneFor (region_code) → 화면의 Scene <svg> 요소 또는 null
@@ -72,71 +72,75 @@ export async function makeShareImage({ results, groups, persona, sceneFor, host 
   ctx.fillText('어디 살까?', 158, 112)
   ctx.fillStyle = MUTED
   ctx.font = `500 28px ${FONT}`
-  ctx.fillText('내 생활비로 고른 동네 TOP 3', 160, 150)
+  ctx.fillText('내 생활비로 고른 1등 동네', 160, 150)
   ctx.fillStyle = INK
   ctx.font = `600 30px ${FONT}`
   wrap(ctx, `${persona} 님에게 어울리는 동네`, W - 96, 2).forEach((l, i) => ctx.fillText(l, 48, 214 + i * 42))
 
-  // 카드 3장
-  for (const [i, x] of results.slice(0, 3).entries()) {
-    const y = 290 + i * 300
-    ctx.fillStyle = '#ffffff'
-    ctx.beginPath(); ctx.roundRect(40, y, W - 80, 272, 28); ctx.fill()
-    ctx.strokeStyle = '#e4e3df'; ctx.lineWidth = 2; ctx.stroke()
+  // 1위 카드 하나 (큰 그림 + 지역 + 월 생활비 + 묶음 막대와 금액)
+  const x = results[0]
+  const cx = 40, cy = 290, cw = W - 80, ch = 935
+  ctx.fillStyle = '#ffffff'
+  ctx.beginPath(); ctx.roundRect(cx, cy, cw, ch, 32); ctx.fill()
+  ctx.strokeStyle = '#e4e3df'; ctx.lineWidth = 2; ctx.stroke()
 
-    const svg = sceneFor(x.region_code)
-    ctx.save()
-    ctx.beginPath(); ctx.roundRect(64, y + 24, 400, 225, 18); ctx.clip()
-    if (svg) {
-      try { ctx.drawImage(await svgToImage(svg, 400, 225), 64, y + 24, 400, 225) } catch { /* 그림 없이 */ }
-    } else { ctx.fillStyle = '#e8f3ff'; ctx.fillRect(64, y + 24, 400, 225) }
-    ctx.restore()
+  const ix = cx + 24, iy = cy + 24, iw = cw - 48, ih = Math.round(iw * 9 / 16)
+  const svg = sceneFor(x.region_code)
+  ctx.save()
+  ctx.beginPath(); ctx.roundRect(ix, iy, iw, ih, 22); ctx.clip()
+  if (svg) {
+    try { ctx.drawImage(await svgToImage(svg, iw, ih), ix, iy, iw, ih) } catch { /* 그림 없이 */ }
+  } else { ctx.fillStyle = '#e8f3ff'; ctx.fillRect(ix, iy, iw, ih) }
+  ctx.restore()
 
-    const tx = 496, maxW = W - 80 - (tx - 40) - 32
-    ctx.fillStyle = ACCENT; ctx.font = `800 30px ${FONT}`
-    ctx.fillText(MEDALS[i], tx, y + 62)
-    ctx.fillStyle = MUTED; ctx.font = `500 24px ${FONT}`
-    ctx.fillText(wrap(ctx, x.card?.nickname || '', maxW, 1)[0] || '', tx, y + 100)
-    ctx.fillStyle = INK; ctx.font = `800 42px ${FONT}`
-    ctx.fillText(wrap(ctx, `${x.sido} ${x.sigungu}`, maxW, 1)[0], tx, y + 152)
-    ctx.font = `800 36px ${FONT}`
-    const total = `월 약 ${manwon(x.total)}`
-    ctx.fillText(total, tx, y + 202)
-    const totalW = ctx.measureText(total).width
-    if (x.card?.level) {
-      ctx.fillStyle = ACCENT; ctx.font = `600 22px ${FONT}`
-      ctx.fillText(wrap(ctx, `${x.card.level.name} · 상위 ${x.card.level.pct}%`, maxW - totalW - 18, 1)[0] || '',
-                   tx + totalW + 18, y + 200)
-    }
-    // 묶음 4색 막대
-    const g = x.card?.groups || {}
-    const sum = Object.values(g).reduce((a, v) => a + v, 0) || 1
-    let bx = tx
-    const bw = maxW
-    ctx.save()
-    ctx.beginPath(); ctx.roundRect(tx, y + 222, bw, 18, 9); ctx.clip()
-    for (const grp of groups) {
-      const w = ((g[grp.id] || 0) / sum) * bw
-      ctx.fillStyle = GROUP_COLOR[grp.id]; ctx.fillRect(bx, y + 222, w, 18)
-      bx += w
-    }
-    ctx.restore()
-  }
-
-  // 범례 + 권유 문구 + 출처
-  let lx = 48
-  ctx.font = `500 24px ${FONT}`
-  for (const grp of groups) {
-    ctx.fillStyle = GROUP_COLOR[grp.id]
-    ctx.beginPath(); ctx.roundRect(lx, 1206, 22, 22, 5); ctx.fill()
-    ctx.fillStyle = MUTED
-    ctx.fillText(grp.label, lx + 32, 1226)
-    lx += 32 + ctx.measureText(grp.label).width + 36
-  }
+  let ty = iy + ih + 56
   ctx.fillStyle = ACCENT; ctx.font = `800 34px ${FONT}`
-  ctx.fillText(`나에게 맞는 동네는?  ${host}`, 48, 1276)
+  const medal = MEDALS[0]
+  ctx.fillText(medal, ix, ty)
+  ctx.fillStyle = MUTED; ctx.font = `500 30px ${FONT}`
+  const mw = ctx.measureText(medal).width
+  ctx.fillText(wrap(ctx, x.card?.nickname || '', iw - mw - 20, 1)[0] || '', ix + mw + 20, ty)
+  ty += 72
+  ctx.fillStyle = INK; ctx.font = `800 64px ${FONT}`
+  ctx.fillText(wrap(ctx, `${x.sido} ${x.sigungu}`, iw, 1)[0], ix, ty)
+  ty += 70
+  ctx.font = `800 50px ${FONT}`
+  const total = `월 약 ${manwon(x.total)}`
+  ctx.fillText(total, ix, ty)
+  const totalW = ctx.measureText(total).width
+  if (x.card?.level) {
+    ctx.fillStyle = ACCENT; ctx.font = `600 28px ${FONT}`
+    ctx.fillText(wrap(ctx, `${x.card.level.name} · 저렴한 순 상위 ${x.card.level.pct}%`, iw - totalW - 24, 1)[0] || '',
+                 ix + totalW + 24, ty - 4)
+  }
+  // 묶음 4색 막대 + 묶음별 금액
+  const g = x.card?.groups || {}
+  const sum = Object.values(g).reduce((a, v) => a + v, 0) || 1
+  ty += 30
+  let bx = ix
+  ctx.save()
+  ctx.beginPath(); ctx.roundRect(ix, ty, iw, 26, 13); ctx.clip()
+  for (const grp of groups) {
+    const w = ((g[grp.id] || 0) / sum) * iw
+    ctx.fillStyle = GROUP_COLOR[grp.id]; ctx.fillRect(bx, ty, w, 26)
+    bx += w
+  }
+  ctx.restore()
+  ty += 84
+  ctx.font = `500 27px ${FONT}`
+  groups.forEach((grp, i) => {   // 2×2: 묶음 이름 + 금액
+    const lx = ix + (i % 2) * (iw / 2), ly = ty + Math.floor(i / 2) * 42
+    ctx.fillStyle = GROUP_COLOR[grp.id]
+    ctx.beginPath(); ctx.roundRect(lx, ly - 21, 22, 22, 5); ctx.fill()
+    ctx.fillStyle = MUTED
+    ctx.fillText(`${grp.label} ${manwon(g[grp.id] || 0)}`, lx + 32, ly)
+  })
+
+  // 권유 문구 + 출처
+  ctx.fillStyle = ACCENT; ctx.font = `800 34px ${FONT}`
+  ctx.fillText(`나에게 맞는 동네는?  ${host}`, 48, 1274)
   ctx.fillStyle = MUTED; ctx.font = `400 19px ${FONT}`
-  wrap(ctx, ATTRIBUTION_LINE, W - 96, 2).forEach((l, i) => ctx.fillText(l, 48, 1310 + i * 26))
+  wrap(ctx, ATTRIBUTION_LINE, W - 96, 2).forEach((l, i) => ctx.fillText(l, 48, 1308 + i * 26))
 
   return new Promise((resolve) => canvas.toBlob(resolve, 'image/png'))
 }

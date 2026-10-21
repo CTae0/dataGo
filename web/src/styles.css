@@ -272,3 +272,13 @@ html, body, #root { height: 100%; margin: 0; }
 .share-url input { font: inherit; font-size: 13px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 8px;
                    background: var(--surface-0); width: 100%; max-width: 360px; }
 .sharebox [role="status"]:empty { display: none; }
+
+/* 결과: 1위 카드 하나만 크게 (넓은 화면은 그림 왼쪽 · 설명 오른쪽) */
+.podium.single, .panel.wide .podium.single { grid-template-columns: 1fr; }
+@media (min-width: 900px) {
+  .podium.single .pcard-main { flex-direction: row; align-items: stretch; }
+  .podium.single .pcard-art { flex: 0 0 46%; aspect-ratio: 16 / 10; }
+  .podium.single .pcard-body { flex: 1; align-content: start; }
+}
+.podium.single .pcard-name { font-size: 22px; }
+.podium.single .pcard-level strong { font-size: 20px; }

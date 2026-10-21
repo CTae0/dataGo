@@ -9,7 +9,7 @@ export default function ShareBox({ spec, data, persona }) {
   const [msg, setMsg] = useState('')
   useEffect(() => () => { if (img) URL.revokeObjectURL(img.url) }, [img])
 
-  const top = data.results.slice(0, 3)
+  const top = data.results.slice(0, 1)   // 공유 이미지는 1위 카드만
   const top1 = top[0] ? `${top[0].sido} ${top[0].sigungu}` : ''
   const resultUrl = location.href
   const inviteUrl = `${location.origin}/`
@@ -73,7 +73,7 @@ export default function ShareBox({ spec, data, persona }) {
         <button type="button" className="secondary" onClick={() => copy(resultUrl, '내 결과 링크를')}>내 결과 링크 복사</button>
         <button type="button" className="secondary" onClick={() => copy(inviteText, '권유 문구와 링크를')}>친구에게 권하기</button>
       </div>
-      {img && <img className="share-preview" src={img.url} alt={`공유 이미지: ${top.map((x) => `${x.sido} ${x.sigungu}`).join(', ')}`} />}
+      {img && <img className="share-preview" src={img.url} alt={`공유 이미지: 1위 ${top1}`} />}
       <label className="share-url small">
         <span className="muted">친구에게 보낼 주소</span>
         <input readOnly value={inviteUrl} onFocus={(e) => e.target.select()} />
