@@ -47,7 +47,7 @@ METRICS = [
     {"id": "grocery_index", "label": "장바구니 물가", "detail": "대형마트·SSM 상품 가격 지수 (전국 중위 = 100)",
      "unit": "지수", "field": "grocery_index", "gran": "grocery_gran", "better": "low", "group": "장바구니",
      "source": "kca_price", "sources": ["kca_price"]},
-    {"id": "meal_index", "label": "외식비", "detail": "외식 8개 품목 평균 가격 지수 (시도 단위)",
+    {"id": "meal_index", "label": "외식비", "detail": "일상 한 끼 5종(냉면·비빔밥·김치찌개 백반·짜장면·칼국수) 평균, 16개 시도 평균 = 100 (시도 단위)",
      "unit": "지수", "field": "meal_index", "gran": "dining_gran", "better": "low", "group": "외식비",
      "source": "mois_dining", "sources": ["mois_dining"]},
 ]

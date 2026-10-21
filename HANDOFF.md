@@ -196,7 +196,8 @@ docker compose exec db psql -U eodi -d eodi -f /sql/load_public_fee.sql
 - **Airflow 3.3.2** (LocalExecutor, 같은 Postgres의 airflow DB). UI http://localhost:8080 (airflow/airflow)
   - DAG 7개 (모두 일시정지 상태로 생성 → UI에서 켜야 돈다):
     `eodi_rent_backfill`(매일 01시), `eodi_rent_monthly`(매월 5일), `eodi_kca_weekly`(토 06시), `eodi_kca_backfill`(매일 09시),
-    `eodi_reference_monthly`(매월 2일, 시험 실행 성공), `eodi_build_mart`(매일 23:30), `eodi_dim_region_yearly`(7/20)
+    `eodi_reference_monthly`(매월 2일, 시험 실행 성공), `eodi_build_mart`(매일 23:30, 외식비 `40_dining.sql` 포함), `eodi_dim_region_yearly`(7/20),
+    `eodi_dining_monthly`(매월 15일: `mois_dining.py` 최근 12개월 → `good_price.py --latest-only` → 지역 매핑, 시험 실행 성공)
   - **API별 하루 예산** `meta.api_usage` + `pipeline/quota.py`: 국토부 4종 각 1만, 소비자원 2천 (KST 자정 초기화). 한도에 닿으면 정상 종료 → 다음 실행이 이어받음
 - **집계** `sql/mart/` (10 전월세 / 20 공공요금 / 30 장바구니 / 90 요약) → `mart.region_summary` 256행
   - 전월세: 면적대 s≤40 / m≤60 / l≤85 / xl, 월세는 **환산 월세 = 월세 + 보증금×5.5%/12** (임시 전환율)
@@ -214,7 +215,7 @@ docker compose exec db psql -U eodi -d eodi -f /sql/load_public_fee.sql
   - **원천 오류를 바로잡음**
     - 2014-07까지 BF·BG·BH 코드에 칼국수·짜장면·삼계탕 값이 들어 있음 → 실제 품목으로 바꿔 저장 (경계 전후 값이 이어지는 것으로 확인)
     - 2018-03~2020-01 같은 시도·품목 행이 2개, 값이 다름(첫 행이 틀리기도 함). 2023-10 대구·대전·부산 '삼겹살 환산 전'에 '환산 후' 값
-    - → 2014-07 이후는 **참가격 외식비 화면(같은 자료)과 매달 대조**해 다르면 참가격 값 사용, `price_src = 'tprice'`.
+    - → 2014-07 이후는 **참가격 외식비 화면(같은 자료)과 매달 대조**: 엇갈리는 중복 행은 참가격 값으로 고르고, 하모니 값이 앞뒤 달과 15% 넘게 튈 때만 참가격 값으로 바꿈 (`price_src = 'tprice'`, 727칸). 변동 시점 한 달 차이 같은 작은 차이 197칸은 하모니 유지.
       참가격은 빠르게 부르면 연결을 끊음 → 달마다 3초 간격. 2014-06 이전은 대조 원천 없음
   - 김밥 단위: 2016-12까지 1인분, 2017-01부터 1줄 (값 약 40% 하락). 삼겹살은 '환산 후(200g)'를 쓴다
   - 실행: `python mois_dining.py` (최근 12개월, 약 1분) / `--from 201109` (전체, 10분 남짓)

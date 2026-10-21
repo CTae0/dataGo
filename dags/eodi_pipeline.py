@@ -67,15 +67,28 @@ with DAG("eodi_reference_monthly", schedule="0 4 2 * *", start_date=START, catch
     fee_dl >> fee_merge >> fee_load
     [std, fee_load] >> xwalk
 
+# ── 외식비 (월간) ───────────────────────────────────────────
+with DAG("eodi_dining_monthly", schedule="0 5 15 * *", start_date=START, catchup=False, max_active_runs=1,
+         default_args=DEFAULTS, tags=["eodi", "dining"],
+         doc_md="매월 15일: 행안부 지방물가정보 외식비(시도, 최근 12개월 다시 받고 참가격과 대조) → "
+                "착한가격업소 최신 스냅샷(분기 파일) → 지역 매핑 갱신. 집계는 eodi_build_mart가 한다. "
+                "조사 근거: docs/research/dining_sources.md"):
+    dining = bash("mois_dining", "python mois_dining.py", execution_timeout=pendulum.duration(minutes=30))
+    good = bash("good_price", "python good_price.py --latest-only", execution_timeout=pendulum.duration(minutes=30))
+    xwalk = bash("region_xwalk", "python -m pipeline.region_xwalk")
+    [dining, good] >> xwalk
+
 # ── 지도용 집계 (매일 밤) ──────────────────────────────────
 with DAG("eodi_build_mart", schedule="30 23 * * *", start_date=START, catchup=False, max_active_runs=1,
          default_args=DEFAULTS, tags=["eodi", "mart"],
-         doc_md="매일 23:30: sql/mart/*.sql을 번호 순서대로 다시 만든다 (전월세 → 공공요금 → 장바구니 → 요약)."):
+         doc_md="매일 23:30: sql/mart/*.sql을 다시 만든다 (전월세·공공요금·장바구니·외식비 → 요약). "
+                "외식비(mart.dining_region)는 API가 요약 표와 함께 읽는다."):
     rent = bash("rent", "python -m pipeline.run_sql sql/mart/10_rent.sql")
     utility = bash("utility", "python -m pipeline.run_sql sql/mart/20_utility.sql")
     grocery = bash("grocery", "python -m pipeline.run_sql sql/mart/30_grocery.sql")
+    dining = bash("dining", "python -m pipeline.run_sql sql/mart/40_dining.sql")
     summary = bash("region_summary", "python -m pipeline.run_sql sql/mart/90_region_summary.sql")
-    [rent, utility, grocery] >> summary
+    [rent, utility, grocery, dining] >> summary
 
 # ── 지역 기준 (연간) ───────────────────────────────────────
 with DAG("eodi_dim_region_yearly", schedule="0 3 20 7 *", start_date=START, catchup=False, max_active_runs=1,

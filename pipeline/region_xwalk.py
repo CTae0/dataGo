@@ -9,6 +9,8 @@
   std_water       raw.std_water_sewage_fee 기관명        예: '대구광역시' → 대구 전체 (sido)
   mois_public_fee raw.mois_public_fee 시도 짧은 이름      예: '광주' → 통합 전 광주 자치구 5곳 (sido_part)
   mois_public_fee_sigungu  2013·2016 시군구 값         예: '강원|춘천시'
+  mois_dining     raw.mois_dining_price 시도 짧은 이름    예: '충남' → 충남 + 세종 (세종은 충남 값에 포함)
+  good_price      raw.good_price_store 시도|시군 (모든 스냅샷)  예: '서울특별시|강남구', '서울|강남구'
 국토부 전월세는 LAWD_CD = region_code라서 매핑이 필요 없다.
 """
 import re
@@ -28,6 +30,8 @@ SIDO_CODE = {
     "전북": "52", "전라북도": "52", "전북특별자치도": "52",
     "광주": "12", "광주광역시": "12", "(구)광주광역시": "12", "전남": "12", "전라남도": "12", "(구)전라남도": "12",
     "전남광주": "12", "전남광주통합특별시": "12",
+    # 원천 표기 오타 (착한가격업소)
+    "광주광역시광역시": "12", "서울특별시시": "11", "세종시": "36",
 }
 # 통합 전 시도 이름 → dim.region_code_history.old_sido (sido_part 매핑용)
 LEGACY_PART = {"광주": "광주", "광주광역시": "광주", "(구)광주광역시": "광주",
@@ -46,6 +50,7 @@ SIGUNGU_ALIAS = {
     ("50", "북제주군"): [("50", "제주시")], ("50", "남제주군"): [("50", "서귀포시")],
     ("36", "세종특별자치시"): [("36", "세종시")],
     ("28", "남구"): [("28", "미추홀구")],
+    ("44", "게룡시"): [("44", "계룡시")],   # 착한가격업소 오타
     ("28", "중구"): [("28", "제물포구"), ("28", "영종구")], ("28", "동구"): [("28", "제물포구")],
     ("28", "서구"): [("28", "서해구"), ("28", "검단구")],
 }
@@ -138,6 +143,14 @@ def collect(cur):
     keys += [("mois_public_fee", sd, sd, "sido", sd, None) for (sd,) in cur.fetchall()]
     cur.execute("SELECT DISTINCT sido, sigungu FROM raw.mois_public_fee WHERE level = 'sigungu'")
     keys += [("mois_public_fee_sigungu", f"{sd}|{sg}", f"{sd} {sg}", "sigungu", sd, sg) for sd, sg in cur.fetchall()]
+    cur.execute("SELECT DISTINCT sido FROM raw.mois_dining_price")
+    for (sd,) in cur.fetchall():
+        keys.append(("mois_dining", sd, sd, "sido", sd, None))
+        if sd == "충남":   # 기관 주석: 세종의 가격정보는 충남에 포함 → 같은 키를 세종에도 연결
+            keys.append(("mois_dining", sd, "충남(세종 포함)", "sido", "세종", None))
+    cur.execute("SELECT DISTINCT sido_nm, sigungu_nm FROM raw.good_price_store WHERE sido_nm IS NOT NULL")
+    keys += [("good_price", f"{sd}|{sg or ''}", f"{sd} {sg or ''}".strip(), "sigungu", sd, sg or "")
+             for sd, sg in cur.fetchall()]
     return keys
 
 
