@@ -43,7 +43,7 @@ def test_chuncheon_solo_wolse_by_hand():
 def test_gangnam_family_jeonse_by_hand():
     e = cm.estimate(GANGNAM, answers(household="family", tenure="jeonse"))
     assert e["housing"] == round(85000 * 10_000 * 0.055 / 12)
-    assert e["dining"] == round(10277 * 12 * 3)            # 아이 둘 ≈ 어른 한 명 → 3인분
+    assert e["dining"] == round(10277 * 12 * 2.43)         # 가계동향 음식·숙박: 4인 = 1인의 2.43배
     assert e["transit"] == round(1500 * 44 * 2)
 
 
@@ -122,5 +122,6 @@ def test_baselines_follow_official_sources():
     assert [cm.HOUSEHOLD[k]["grocery_base"] for k in ("solo", "duo", "family")] == [241_000, 464_700, 681_400]
     assert [cm.HOUSEHOLD[k]["water"] for k in ("solo", "duo", "family")] == [0.299, 0.598, 1.196]
     assert [cm.HOUSEHOLD[k]["gas_units"] for k in ("solo", "duo", "family")] == [2.63, 3.71, 5.25]
+    assert [cm.HOUSEHOLD[k]["eaters"] for k in ("solo", "duo", "family")] == [1.0, 1.28, 2.43]   # 11.음식·숙박 비율
     # 평균 가구(2.16명) 가스 = 559.6㎥/12 × 42.7MJ ÷ 516MJ ≈ 3.86단위
     assert cm._gas_units(cm.AVG_HOUSEHOLD_SIZE) == pytest.approx(3.86, abs=0.01)
