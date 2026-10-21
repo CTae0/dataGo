@@ -32,12 +32,12 @@ def answers(**kw):
 def test_chuncheon_solo_wolse_by_hand():
     e = cm.estimate(CHUNCHEON, answers(household="solo", tenure="wolse"))
     assert e["housing"] == 406_000                         # 40.6만 원
-    assert e["water"] == round(24000 * 0.5 * 1.0)          # 1인 배율 0.5, 평범한 샤워
-    assert e["gas"] == round(12618 * 2.5 * 1.0)            # 516MJ 2.5단위
+    assert e["water"] == round(24000 * 0.299 * 1.0)        # 1인 196.6ℓ/일 ≈ 5.98㎥/월 → 20㎥의 0.299배
+    assert e["gas"] == round(12618 * 2.63 * 1.0)           # 평균 가구 3.86단위 × √1/√2.16
     assert e["trash"] == round(470 * 4 * 1.0)              # 주 1장
     assert e["transit"] == round(1291 * 44 * 1)            # 출퇴근
     assert e["dining"] == round(9300 * 12 * 1)             # 주 2~4회
-    assert e["grocery"] == round(220_000 * 1.0 * 1.027)
+    assert e["grocery"] == round(241_000 * 1.0 * 1.027)    # 가계동향 1인 식료품비 240,959원
 
 
 def test_gangnam_family_jeonse_by_hand():
@@ -115,3 +115,12 @@ def test_thin_samples_are_treated_as_missing():
     assert e["housing"] == 350_000
     thin = {**CHUNCHEON, "deals_s": cm.MIN_DEALS - 1}
     assert cm.estimate(thin, answers(household="solo", tenure="wolse"))["housing"] is None
+
+
+def test_baselines_follow_official_sources():
+    # 가계동향조사 KOSIS DT_1L9U105 (2026.1~2/4 평균), 상수도통계 2024 가정용 196.6ℓ, 가스공사 2022 559.6㎥/년
+    assert [cm.HOUSEHOLD[k]["grocery_base"] for k in ("solo", "duo", "family")] == [241_000, 464_700, 681_400]
+    assert [cm.HOUSEHOLD[k]["water"] for k in ("solo", "duo", "family")] == [0.299, 0.598, 1.196]
+    assert [cm.HOUSEHOLD[k]["gas_units"] for k in ("solo", "duo", "family")] == [2.63, 3.71, 5.25]
+    # 평균 가구(2.16명) 가스 = 559.6㎥/12 × 42.7MJ ÷ 516MJ ≈ 3.86단위
+    assert cm._gas_units(cm.AVG_HOUSEHOLD_SIZE) == pytest.approx(3.86, abs=0.01)

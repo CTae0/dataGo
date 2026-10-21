@@ -6,25 +6,59 @@
 - estimate(region, answers): 지역 1곳의 항목별 원/월
 - recommend(regions, answers): 조건에 맞는 지역을 월 합계 오름차순으로
 
-계수의 근거는 상수 옆 주석에. 아직 확인 못 한 값은 'TODO 출처'.
+계수의 근거는 아래 '근거 통계'와 상수 옆 주석에. 근거 수치를 바꾸면 계수는 다시 계산된다.
 """
+from math import sqrt
 from statistics import median
+
+# ── 근거 통계 (2026-10-21 확인) ─────────────────────────────────
+# [식료품] 국가데이터처 가계동향조사, KOSIS DT_1L9U105 「가구원수별 가구당 월평균 가계수지 (전국,1인이상)」
+#          01.식료품·비주류음료, 전체가구, 2026.1/4와 2026.2/4의 평균 (원/월). 가족은 '4인' 행.
+#          https://kosis.kr/statHtml/statHtml.do?orgId=101&tblId=DT_1L9U105
+GROCERY_SPEND = {1: (246_648 + 235_269) / 2, 2: (478_532 + 450_852) / 2, 4: (689_743 + 672_983) / 2}
+AVG_HOUSEHOLD_SIZE = 2.16   # 같은 표의 '전체 평균' 가구원수 (2026.1/4·2/4)
+# [물] 기후에너지환경부 「2024년 상수도 통계」: 국민 1인 1일 물 사용량 305.9ℓ 중 가정용 196.6ℓ
+#      (한국수자원공사 안내 페이지 https://www.kwater.or.kr/cust/sub04/rateconsumerPage.do?s_mid=1548)
+WATER_L_PER_PERSON_DAY = 196.6
+WATER_BASE_M3 = 20          # mart의 상하수도 요금 기준 사용량 (sql/mart/20_utility.sql)
+# [가스] 한국가스공사 「연별 가구당 가정용 도시가스 소비량」 (data.go.kr 15130018): 2022년 가구당 559.6㎥/년
+#        도시가스 총발열량 42.7MJ/N㎥ (에너지법 시행규칙 별표) → 월 46.6㎥ ≈ 1,991MJ
+#        gas_total(행안부 지방공공요금)은 '가정용 취사 516MJ' 월 요금이라 그 몇 배인지(단위 수)로 쓴다.
+GAS_M3_PER_HOUSEHOLD_YEAR = 559.6
+GAS_MJ_PER_M3 = 42.7
+GAS_UNIT_MJ = 516
+# 가구원 수별 가스 사용량 통계는 찾지 못해, 평균 가구(2.16명) 값을 OECD 제곱근 등가척도(√가구원 수)로 나눈다 — 가정.
+#   1인 2.63 / 2인 3.71 / 4인 5.25 단위
+
+
+def _water_factor(persons):
+    """20㎥ 기준 요금에 곱할 배율 = 가구 월 사용량 / 20㎥ (1인 0.30, 2인 0.60, 4인 1.20)"""
+    return round(persons * WATER_L_PER_PERSON_DAY * 365 / 12 / 1000 / WATER_BASE_M3, 3)
+
+
+def _gas_units(persons):
+    avg_units = GAS_M3_PER_HOUSEHOLD_YEAR / 12 * GAS_MJ_PER_M3 / GAS_UNIT_MJ     # 평균 가구 ≈ 3.86단위
+    return round(avg_units * sqrt(persons) / sqrt(AVG_HOUSEHOLD_SIZE), 2)
+
 
 # ── 계수 ─────────────────────────────────────────────────────
 RATE = 0.055  # 전세 보증금 기회비용(연). mart.rent_*의 환산 월세와 같은 값 (sql/mart/10_rent.sql)
 MIN_DEALS = 10  # 최근 12개월 거래가 이보다 적은 면적대의 중위값은 믿지 않고 '자료 없음'(→ 시도 중위값으로 채움)
 
 HOUSEHOLD = {   # 문항 1
-    "solo":   {"persons": 1, "band": "s", "water": 0.5, "gas_units": 2.5, "trash": 1.0, "riders": 1, "eaters": 1, "grocery_base": 220_000},
-    "duo":    {"persons": 2, "band": "m", "water": 0.8, "gas_units": 3.5, "trash": 1.5, "riders": 2, "eaters": 2, "grocery_base": 380_000},
-    "family": {"persons": 4, "band": "l", "water": 1.2, "gas_units": 5.0, "trash": 2.5, "riders": 2, "eaters": 3, "grocery_base": 620_000},
+    key: {"persons": n, "band": band, "water": _water_factor(n), "gas_units": _gas_units(n), "trash": trash,
+          "riders": riders, "eaters": eaters, "grocery_base": round(GROCERY_SPEND[n], -2)}
+    for key, n, band, trash, riders, eaters in [
+        ("solo", 1, "s", 1.0, 1, 1),
+        ("duo", 2, "m", 1.5, 2, 2),
+        ("family", 4, "l", 2.5, 2, 3),
+    ]
 }
-# water: 상하수도 요금(20㎥ 기준값)에 곱하는 가구원 배율. 20㎥ ≈ 2~3인 가구 월 사용량. TODO 출처: 환경부 상수도통계 1인당 급수량
-# gas_units: 월 사용량을 '516MJ(취사 기준 1단위)' 몇 개로 볼지. gas_total은 행안부 지방공공요금의 취사 516MJ 월 요금이라
-#            그대로 쓰면 난방이 빠진다 → 연평균 월 사용량으로 환산. TODO 출처: 도시가스 가정용 가구당 월평균 사용량
-# trash: 쓰레기봉투 장수(문항 7, 1인 기준)에 곱하는 가구원 보정
-# riders: 시내버스를 타는 사람 수 / eaters: 외식 인원 (아이 둘 ≈ 어른 한 명분)
-# grocery_base: 가구원 수별 월 식료품·비주류음료 지출(원). TODO 출처: 통계청 가계동향조사 가구원수별 소비지출
+# water: 상하수도 요금(20㎥ 기준값)에 곱하는 가구원 배율 — [물] 근거
+# gas_units: 월 사용량을 '516MJ(취사 기준 1단위)' 몇 개로 볼지 — [가스] 근거 (난방 포함 연평균)
+# grocery_base: 가구원 수별 월 식료품·비주류음료 지출(원) — [식료품] 근거. 냉장고 문항 배율(0.5/1.0/1.4)을 곱한다
+# trash: 쓰레기봉투 장수(문항 7, 1인 기준)에 곱하는 가구원 보정 (가정)
+# riders: 시내버스를 타는 사람 수 / eaters: 외식 인원 (아이 둘 ≈ 어른 한 명분) (가정)
 
 QUESTIONS = [
     {"id": "household", "title": "우리 집 인구는?", "kind": "single", "options": [
@@ -179,7 +213,8 @@ def recommend(regions, answers):
             "주거비는 최근 12개월 실거래 중위값이고, 전세는 보증금 이자(연 5.5%)로 환산했습니다.",
             "상하수도는 기본요금이 빠져 있어 실제보다 조금 낮습니다.",
             "도시가스·버스는 시도 평균 요금, 외식비는 시도 평균 가격입니다.",
-            "장보기는 가구 기준 지출에 지역 장바구니 지수를 곱한 값입니다 (대형마트·SSM 기준).",
+            "장보기는 가구원 수별 식료품비(국가데이터처 가계동향조사 2026년 1~2분기)에 지역 장바구니 지수를 곱한 값입니다 (대형마트·SSM 기준).",
+            "물 사용량은 1인 하루 196.6ℓ(2024년 상수도 통계 가정용), 도시가스는 가구당 연 559.6㎥(한국가스공사 2022년)를 기준으로 했습니다. 가스의 가구원 수별 차이는 추정입니다.",
             "모든 값은 추정치이며 실제와 다를 수 있습니다.",
         ],
     }
