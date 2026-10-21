@@ -6,6 +6,7 @@ import Attribution from './Attribution.jsx'
 import Questionnaire from './Questionnaire.jsx'
 import Results from './Results.jsx'
 import Home from './Home.jsx'
+import Logo from './Logo.jsx'
 import { quantileBreaks } from './format.js'
 import { apiJSON } from './api.js'
 
@@ -108,7 +109,7 @@ export default function App() {
   return (
     <div className="app">
       <header className="topbar">
-        <h1><button type="button" className="brand" onClick={goHome}>어디 살까?</button></h1>
+        <h1><button type="button" className="brand" onClick={goHome}><Logo size={28} /><span>어디 살까?</span></button></h1>
         {mode === 'explore' && (
           <>
             <button type="button" className="primary" onClick={() => setMode('quiz')} disabled={!spec}>나한테 맞는 동네 찾기</button>

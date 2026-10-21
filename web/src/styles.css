@@ -237,7 +237,9 @@ html, body, #root { height: 100%; margin: 0; }
 .item-legend li .muted { margin-left: 2px; }
 
 /* ── 첫 화면 ── */
-.brand { font: inherit; font-weight: 700; border: none; background: none; padding: 0; cursor: pointer; color: inherit; }
+.brand { font: inherit; font-weight: 700; border: none; background: none; padding: 0; cursor: pointer; color: inherit;
+         display: inline-flex; align-items: center; gap: 8px; }
+.brand svg { display: block; border-radius: 7px; }
 .topbar-right { margin-left: auto; }
 .home-body { overflow-y: auto; }
 .home { width: 100%; max-width: 960px; margin: 0 auto; padding: 32px 16px 40px; display: grid; gap: 28px; align-content: start; }
@@ -257,3 +259,16 @@ html, body, #root { height: 100%; margin: 0; }
 .pcard.mini .pcard-name { font-size: 16px; }
 .kbd-hint { margin-top: 12px; }
 @media (max-width: 520px) { .kbd-hint { display: none; } .home { padding-top: 20px; } }
+
+/* ── 결과 공유 ── */
+.sharebox { display: grid; gap: 10px; margin: 4px 0 12px; padding: 14px; border: 1px solid var(--border); border-radius: 14px;
+            background: var(--surface-1); }
+.share-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+.share-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.share-actions a.primary { text-decoration: none; display: inline-flex; align-items: center; }
+.share-preview { width: min(100%, 300px); height: auto; border-radius: 12px; border: 1px solid var(--border);
+                 box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08); }
+.share-url { display: grid; gap: 4px; }
+.share-url input { font: inherit; font-size: 13px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 8px;
+                   background: var(--surface-0); width: 100%; max-width: 360px; }
+.sharebox [role="status"]:empty { display: none; }

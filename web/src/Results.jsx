@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import Scene from './Scene.jsx'
+import ShareBox from './ShareBox.jsx'
 import { GROUP_COLOR, ITEM_COLOR, NA_COLOR, manwon, won } from './format.js'
 
 const MEDALS = ['🥇 1위', '🥈 2위', '🥉 3위']
@@ -69,7 +70,7 @@ function PodiumCard({ spec, x, selected, onSelect }) {
   const energy = c?.groups?.energy
   const withMgmt = x.items.mgmt && !x.items.mgmt.na
   return (
-    <div className={`pcard ${selected ? 'on' : ''}`}>
+    <div className={`pcard ${selected ? 'on' : ''}`} data-code={x.region_code}>
       <button type="button" className="pcard-main" onClick={() => onSelect(x.region_code)}>
         <div className="pcard-art">
           <Scene type={c?.archetype} />
@@ -130,6 +131,8 @@ export default function Results({ spec, data, onSelect, selected, onRestart }) {
           <div className="podium">
             {top.map((x) => <PodiumCard key={x.region_code} spec={spec} x={x} selected={selected === x.region_code} onSelect={onSelect} />)}
           </div>
+
+          <ShareBox spec={spec} data={data} persona={persona(spec, answers)} />
 
           <div className="item-legend">
             <ul>{spec.groups.map((g) => {
