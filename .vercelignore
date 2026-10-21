@@ -1,0 +1,7 @@
+# Vercel에는 화면(web/)만 올린다. 수집 코드·문서·api/(Python)는 올리지 않는다
+#   (루트 api/ 폴더는 Vercel이 서버리스 함수로 오인한다).
+/*
+!/web
+!/vercel.json
+/web/node_modules
+/web/dist

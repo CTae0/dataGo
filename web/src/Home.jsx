@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import Scene from './Scene.jsx'
 import { GROUP_COLOR, manwon } from './format.js'
+import { apiFetch } from './api.js'
 
 // 첫 화면: 퀴즈 먼저. 기본 답(1인·월세·빌라)으로 뽑은 예시 카드 3장을 미리 보여 준다.
 const visible = (q, ans) => Object.entries(q.show_if || {}).every(([k, v]) => ans[k] === v)
@@ -9,7 +10,7 @@ export default function Home({ spec, onStart, onMap }) {
   const [sample, setSample] = useState(null)
   useEffect(() => {
     if (!spec) return
-    fetch('/api/recommend', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(spec.defaults) })
+    apiFetch('/api/recommend', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(spec.defaults) })
       .then((r) => (r.ok ? r.json() : null)).then(setSample).catch(() => setSample(null))
   }, [spec])
   const nq = spec ? spec.questions.filter((q) => visible(q, spec.defaults)).length : null

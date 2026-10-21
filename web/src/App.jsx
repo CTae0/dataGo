@@ -7,6 +7,7 @@ import Questionnaire from './Questionnaire.jsx'
 import Results from './Results.jsx'
 import Home from './Home.jsx'
 import { quantileBreaks } from './format.js'
+import { apiJSON } from './api.js'
 
 async function getJSON(url, opts) {
   const r = await fetch(url, opts)
@@ -58,8 +59,8 @@ export default function App() {
   const [error, setError] = useState(null)
 
   useEffect(() => {
-    Promise.all([getJSON('/api/metrics'), getJSON('/api/regions'), getJSON('/api/sources'),
-                 getJSON('/sigungu.geojson'), getJSON('/api/questions')])
+    Promise.all([apiJSON('/api/metrics'), apiJSON('/api/regions'), apiJSON('/api/sources'),
+                 getJSON('/sigungu.geojson'), apiJSON('/api/questions')])   // 경계 geojson은 화면과 같이 배포된 정적 파일
       .then(([m, r, s, g, q]) => {
         setMetrics(m)
         setRegions(Object.fromEntries(r.map((row) => [row.region_code, row])))
@@ -73,7 +74,7 @@ export default function App() {
   // URL에 답변이 있으면 바로 결과로
   useEffect(() => {
     if (!answers) return
-    getJSON('/api/recommend', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(answers) })
+    apiJSON('/api/recommend', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(answers) })
       .then((d) => { setRec(d); setMode('results') })
       .catch((e) => setError(String(e)))
   }, [answers])

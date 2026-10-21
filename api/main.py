@@ -13,16 +13,32 @@
 모든 값에는 *_gran(정밀도: exact/si/legacy/sido_part/sido)이 붙는다.
 'sido'·'sido_part'는 시군구 값이 없어 시도 평균으로 채운 것 → 화면에서 구분해 보여 줄 것.
 """
+import os
 from contextlib import contextmanager
 
 import psycopg2.extras
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 
 import molit_rent as common
 from api import cost_model, describe
 
 common.load_env()
 app = FastAPI(title="어디 살까? API", version="0.1.0")
+
+# CORS: 다른 주소의 화면(Vercel)이 이 API를 부를 수 있게 허용할 출처.
+#   ALLOWED_ORIGINS(쉼표로 구분)로 바꿀 수 있다. 이 팀의 Vercel 미리보기 주소(wherelive-*-ctae0s-projects.vercel.app)도 허용.
+#   ngrok 경고 페이지를 건너뛰는 헤더(ngrok-skip-browser-warning) 때문에 브라우저가 사전 요청을 보내므로 그 헤더를 허용한다.
+ALLOWED_ORIGINS = [o.strip() for o in os.environ.get(
+    "ALLOWED_ORIGINS", "https://wherelive-phi.vercel.app,http://localhost:5173,http://localhost:4173").split(",") if o.strip()]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=ALLOWED_ORIGINS,
+    allow_origin_regex=r"https://wherelive-[a-z0-9-]+-ctae0s-projects\.vercel\.app",
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type", "ngrok-skip-browser-warning"],
+    max_age=3600,
+)
 
 # 지표 목록. field는 /api/regions 응답의 키, gran은 정밀도 키, better는 'low'(낮을수록 좋음)
 # sources: 이 지표를 칠할 때 화면에 표시할 출처 (시도 평균 대체에 쓰는 원천 포함)

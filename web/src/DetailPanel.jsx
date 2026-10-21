@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import TrendChart from './TrendChart.jsx'
+import { apiFetch } from './api.js'
 import PowerChart from './PowerChart.jsx'
 import { formatValue, GRAN_LABEL, isFallback } from './format.js'
 
@@ -20,7 +21,7 @@ export default function DetailPanel({ code, summary, metrics, sources, onClose, 
   const [error, setError] = useState(null)
   useEffect(() => {
     setDetail(null); setError(null)
-    fetch(`/api/regions/${code}`).then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
+    apiFetch(`/api/regions/${code}`).then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
       .then(setDetail).catch((e) => setError(String(e)))
   }, [code])
 
