@@ -130,7 +130,7 @@ export default function App() {
       </header>
 
       {mode === 'home' && !inResults ? (
-        <Home spec={spec} onStart={() => setMode('quiz')} onMap={() => setMode('explore')} />
+        <Home spec={spec} error={error} onStart={() => setMode('quiz')} onMap={() => setMode('explore')} />
       ) : mode === 'quiz' && spec ? (
         <main className="body quiz-body">
           <Questionnaire spec={spec} initial={answers} onDone={finishQuiz} onCancel={() => setMode(rec ? 'results' : 'home')} />
@@ -138,7 +138,7 @@ export default function App() {
       ) : (
         <main className="body">
           <section className="map-wrap">
-            {error && <div className="error">불러오지 못했습니다: {error}</div>}
+            {error && <div className="error">지금 서버가 쉬는 중이에요. 잠시 뒤 새로고침해 주세요.</div>}
             {!error && (!geo || !regions) && <div className="loading">지도를 불러오는 중…</div>}
             {geo && mapRegions && metric && (
               <MapView geo={geo} regions={mapRegions} metric={metric} breaks={breaks}

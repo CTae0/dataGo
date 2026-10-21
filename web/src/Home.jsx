@@ -6,7 +6,7 @@ import { apiFetch } from './api.js'
 // 첫 화면: 퀴즈 먼저. 기본 답(1인·월세·빌라)으로 뽑은 예시 카드 3장을 미리 보여 준다.
 const visible = (q, ans) => Object.entries(q.show_if || {}).every(([k, v]) => ans[k] === v)
 
-export default function Home({ spec, onStart, onMap }) {
+export default function Home({ spec, error, onStart, onMap }) {
   const [sample, setSample] = useState(null)
   useEffect(() => {
     if (!spec) return
@@ -30,6 +30,8 @@ export default function Home({ spec, onStart, onMap }) {
             <button type="button" className="link big" onClick={onMap}>전국 지도로 둘러보기 ›</button>
           </div>
           {nq && <p className="muted small">질문 {nq}개 · 1분이면 끝나요 · 답은 저장하지 않아요</p>}
+          {error && <p className="relaxed" role="status">지금 서버가 쉬는 중이라 질문지를 불러오지 못했어요. 잠시 뒤 새로고침해 주세요.</p>}
+          {!spec && !error && <p className="muted small">질문지를 불러오는 중…</p>}
         </section>
 
         <section className="home-groups" aria-label="계산하는 항목">
