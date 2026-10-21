@@ -160,3 +160,61 @@ html, body, #root { height: 100%; margin: 0; }
 .panel.embedded { width: auto; border-left: none; border-top: 1px solid var(--border); padding: 8px 0 0; margin-top: 16px; overflow: visible; }
 
 .attr-more { color: var(--text-muted); }
+
+/* ── 대표 그림 애니메이션 (Scene.jsx) ── */
+.scene { width: 100%; height: 100%; display: block; }
+.s-drift { animation: s-drift 40s linear infinite; }
+@keyframes s-drift { from { transform: translateX(-60px); } to { transform: translateX(60px); } }
+.s-wave { animation: s-wave 6s ease-in-out infinite alternate; }
+@keyframes s-wave { from { transform: translateX(0); } to { transform: translateX(-40px); } }
+.s-bob { animation: s-bob 3s ease-in-out infinite alternate; transform-box: fill-box; }
+@keyframes s-bob { from { translate: 0 0; rotate: -2deg; } to { translate: 0 3px; rotate: 2deg; } }
+.s-flap { animation: s-flap 4s ease-in-out infinite alternate; }
+@keyframes s-flap { from { transform: translate(0, 0); } to { transform: translate(18px, -6px); } }
+.s-smoke { animation: s-smoke 4s ease-in-out infinite; }
+@keyframes s-smoke { 0% { opacity: 0; transform: translateY(6px); } 40% { opacity: 0.8; } 100% { opacity: 0; transform: translateY(-10px); } }
+.s-train { animation: s-train 9s linear infinite; }
+@keyframes s-train { from { transform: translateX(0); } to { transform: translateX(450px); } }
+.s-car { animation: s-car 7s linear infinite; }
+@keyframes s-car { from { transform: translateX(0); } to { transform: translateX(380px); } }
+.s-tractor { animation: s-tractor 16s linear infinite; }
+@keyframes s-tractor { from { transform: translateX(0); } to { transform: translateX(400px); } }
+.s-twinkle { animation: s-twinkle 3s ease-in-out infinite alternate; }
+@keyframes s-twinkle { from { opacity: 0.85; } to { opacity: 0.3; } }
+.s-pulse { animation: s-pulse 4s ease-in-out infinite alternate; transform-box: fill-box; transform-origin: center; }
+@keyframes s-pulse { from { transform: scale(1); } to { transform: scale(1.08); } }
+@media (prefers-reduced-motion: reduce) {
+  .scene * { animation: none !important; }
+}
+
+/* ── 질문지 A/B ── */
+.quiz-group { font-size: 12px; font-weight: 600; color: var(--accent); letter-spacing: 0.04em; }
+.options.ab { grid-template-columns: 1fr 1fr; }
+.options.ab .option { min-height: 120px; justify-content: center; align-items: center; text-align: center; }
+.options.ab .option-tag { font-size: 12px; font-weight: 700; color: var(--accent); }
+@media (max-width: 520px) { .options.ab { grid-template-columns: 1fr; } .options.ab .option { min-height: 0; } }
+
+/* ── 결과 카드 3장 ── */
+.podium { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); margin: 12px 0; }
+.pcard { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: 14px; overflow: hidden;
+         background: var(--surface-0); text-align: left; font: inherit; padding: 0; cursor: pointer; }
+.pcard:hover, .pcard.on { border-color: var(--accent); box-shadow: 0 4px 14px rgba(42, 120, 214, 0.15); }
+.pcard-art { position: relative; aspect-ratio: 16 / 9; background: #e8f3ff; }
+.pcard-rank { position: absolute; top: 8px; left: 8px; background: rgba(255, 255, 255, 0.92); border-radius: 999px;
+              padding: 3px 10px; font-size: 12px; font-weight: 700; color: var(--accent); }
+.pcard-body { display: grid; gap: 6px; padding: 12px 14px 14px; }
+.pcard-nick { font-size: 12px; color: var(--text-muted); }
+.pcard-name { font-size: 18px; font-weight: 700; }
+.pcard-level { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.pcard-level strong { font-size: 16px; font-variant-numeric: tabular-nums; }
+.level-badge { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: #eef5ff; color: #1c5cab; }
+.pcard-text { font-size: 13px; color: var(--text-secondary); line-height: 1.55; margin: 0; }
+.pcard-facts { display: flex; flex-wrap: wrap; gap: 4px; }
+.pcard-facts span { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: #f2f2ef; color: var(--text-secondary); }
+.relaxed { font-size: 13px; color: var(--fallback-ink); background: var(--fallback-bg); padding: 8px 10px; border-radius: 8px; }
+
+/* 결과 모드: 카드 3장이 나란히 보이게 패널을 넓힌다 */
+.panel.wide { width: min(780px, 62%); }
+.panel.wide .podium { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 900px) { .panel.wide .podium { grid-template-columns: 1fr; } }
+@media (max-width: 760px) { .panel.wide { width: 100%; } }

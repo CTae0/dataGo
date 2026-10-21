@@ -2,119 +2,137 @@
 import pytest
 
 from api import cost_model as cm
+from api import describe
 
-# /api/regions 행에서 모델이 쓰는 칸만 (값은 실제 마트 값과 비슷하게)
-CHUNCHEON = {"region_code": "51110", "sido": "강원", "sigungu": "춘천시",
+# /api/regions 행에서 모델이 쓰는 칸만 (값은 실제 마트 값과 비슷하게) + mart.region_features 칸
+CHUNCHEON = {"region_code": "51110", "sido": "강원", "sigungu": "춘천시", "sigungu_type": "시",
              "deals_s": 500, "deals_m": 300, "deals_l": 200, "jeonse_deals_s": 100, "jeonse_deals_m": 100, "jeonse_deals_l": 100,
              "cost_s": 40.6, "cost_m": 57.3, "cost_l": 103.2, "jeonse_s": 7000.0, "jeonse_m": 12700.0, "jeonse_l": 22500.0,
              "water_sewer": 24000.0, "water_sewer_gran": "exact", "gas_total": 12618.0, "trash_20l": 470.0, "trash_gran": "exact",
              "bus_card": 1291.0, "meal_avg": 9300.0, "dining_gran": "sido", "grocery_index": 102.7, "grocery_gran": "exact",
-             "grocery_stores": 2}
-GANGNAM = {"region_code": "11680", "sido": "서울", "sigungu": "강남구",
+             "grocery_stores": 2, "is_coastal": False, "coast_km": 0, "is_capital": False, "is_metro_area": False,
+             "airport_name": "원주공항", "airport_km": 51.4, "archetype": "small_city"}
+GANGNAM = {"region_code": "11680", "sido": "서울", "sigungu": "강남구", "sigungu_type": "구",
            "deals_s": 500, "deals_m": 300, "deals_l": 200, "jeonse_deals_s": 100, "jeonse_deals_m": 100, "jeonse_deals_l": 100,
            "cost_s": 96.6, "cost_m": 150.0, "cost_l": 389.6, "jeonse_s": 27000.0, "jeonse_m": 50000.0, "jeonse_l": 85000.0,
            "water_sewer": 22280.0, "water_sewer_gran": "sido", "gas_total": 11624.0, "trash_20l": 490.0, "trash_gran": "exact",
            "bus_card": 1500.0, "meal_avg": 10277.0, "dining_gran": "sido", "grocery_index": 102.6, "grocery_gran": "exact",
-           "grocery_stores": 14}
-YANGYANG = {"region_code": "51830", "sido": "강원", "sigungu": "양양군",
+           "grocery_stores": 14, "is_coastal": False, "coast_km": 0, "is_capital": True, "is_metro_area": True,
+           "airport_name": "김포공항", "airport_km": 25.0, "archetype": "metropolis"}
+YANGYANG = {"region_code": "51830", "sido": "강원", "sigungu": "양양군", "sigungu_type": "군",
             "deals_s": 40, "deals_m": 0, "deals_l": 0, "jeonse_deals_s": 3,
             "cost_s": 35.0, "cost_m": None, "cost_l": None, "jeonse_s": None, "jeonse_m": None, "jeonse_l": None,
             "water_sewer": 30000.0, "water_sewer_gran": "exact", "gas_total": 12618.0, "trash_20l": 420.0, "trash_gran": "exact",
             "bus_card": 1291.0, "meal_avg": 9300.0, "dining_gran": "sido", "grocery_index": None, "grocery_gran": None,
-            "grocery_stores": 0}
+            "grocery_stores": 0, "is_coastal": True, "coast_km": 21.0, "is_capital": False, "is_metro_area": False,
+            "airport_name": "양양공항", "airport_km": 8.0, "archetype": "seaside_village"}
 REGIONS = [CHUNCHEON, GANGNAM, YANGYANG]
+SOLO = {"living": "a"}
+DUO = {"living": "b", "family_size": "a"}
+FAMILY = {"living": "b", "family_size": "b"}
 
 
-def answers(**kw):
+def ans(**kw):
     return cm.normalize(kw)
 
 
 def test_chuncheon_solo_wolse_by_hand():
-    e = cm.estimate(CHUNCHEON, answers(household="solo", tenure="wolse"))
-    assert e["housing"] == 406_000                         # 40.6만 원
-    assert e["water"] == round(24000 * 0.299 * 1.0)        # 1인 196.6ℓ/일 ≈ 5.98㎥/월 → 20㎥의 0.299배
-    assert e["gas"] == round(12618 * 2.63 * 1.0)           # 평균 가구 3.86단위 × √1/√2.16
-    assert e["trash"] == round(470 * 4 * 1.0)              # 주 1장
-    assert e["transit"] == round(1291 * 44 * 1)            # 출퇴근
-    assert e["dining"] == round(9300 * 12 * 1)             # 주 2~4회
-    assert e["grocery"] == round(241_000 * 1.0 * 1.027)    # 가계동향 1인 식료품비 240,959원
+    # 기본 답: 월세(b), 3분 샤워(b, 0.8), 전기장판(b, 0.7), 생수 냉장고(b, 0.6), 집밥(b, 4끼), 미니멀(b, 2장), 버스(a, 44회)
+    e = cm.estimate(CHUNCHEON, ans(**SOLO))
+    assert e["housing"] == 406_000                                 # 40.6만 원
+    assert e["water"] == round(24000 * 0.299 * 0.8)                # 1인 196.6ℓ/일 → 20㎥의 0.299배 × 3분 샤워
+    assert e["gas"] == round(12618 * 2.63 * 0.7)                   # 평균 가구 3.86단위 × √1/√2.16 × 전기장판
+    assert e["trash"] == round(470 * 2 * 1.0)
+    assert e["transit"] == round(1291 * 44 * 1)
+    assert e["dining"] == round(9300 * 4 * 1)
+    assert e["grocery"] == round(241_000 * 0.6 * 1.027)
 
 
 def test_gangnam_family_jeonse_by_hand():
-    e = cm.estimate(GANGNAM, answers(household="family", tenure="jeonse"))
+    e = cm.estimate(GANGNAM, ans(**FAMILY, tenure="a", dining="a"))
     assert e["housing"] == round(85000 * 10_000 * 0.055 / 12)
-    assert e["dining"] == round(10277 * 12 * 2.43)         # 가계동향 음식·숙박: 4인 = 1인의 2.43배
+    assert e["dining"] == round(10277 * 25 * 2.43)                 # 배달앱 VVIP × 가계동향 4인 외식 배수
     assert e["transit"] == round(1500 * 44 * 2)
 
 
-def test_any_tenure_takes_cheaper():
-    e = cm.estimate(CHUNCHEON, answers(tenure="any"))
-    assert e["housing"] == min(406_000, round(7000 * 10_000 * 0.055 / 12))
+def test_family_question_only_when_living_together():
+    assert "family_size" not in ans(**SOLO)["answers"]             # 혼자 살면 묻지 않음
+    assert ans(living="a", family_size="b")["household"] == "solo"  # 숨은 질문의 답은 무시
+    assert ans(**DUO)["household"] == "duo" and ans(**FAMILY)["household"] == "family"
 
 
-@pytest.mark.parametrize("qid,low,high,item", [("shower", "quick", "waterpark", "water"),
-                                                ("boiler", "low", "sauna", "gas")])
-def test_factor_changes_only_its_item(qid, low, high, item):
-    a, b = cm.estimate(CHUNCHEON, answers(**{qid: low})), cm.estimate(CHUNCHEON, answers(**{qid: high}))
+@pytest.mark.parametrize("qid,item", [("shower", "water"), ("boiler", "gas"), ("grocery", "grocery"),
+                                      ("dining", "dining"), ("trash", "trash"), ("transit", "transit")])
+def test_each_lifestyle_question_moves_only_its_item(qid, item):
+    a, b = cm.estimate(CHUNCHEON, ans(**{qid: "a"})), cm.estimate(CHUNCHEON, ans(**{qid: "b"}))
     for k in cm.ITEMS:
-        if k == item:
-            ratio = cm._opt(qid, high)["factor"] / cm._opt(qid, low)["factor"]
-            assert b[k] == pytest.approx(a[k] * ratio, rel=1e-3)
-        else:
-            assert a[k] == b[k]
+        assert (a[k] != b[k]) == (k == item), (qid, k)
 
 
 def test_missing_items_filled_with_sido_median_and_flagged():
-    res, _, _ = cm.recommend(REGIONS, {"household": "duo"})
+    res, _, _ = cm.recommend(REGIONS, DUO)
     y = next(x for x in res if x["region_code"] == "51830")
-    assert y["items"]["housing"]["filled"] is True        # 양양 cost_m 없음 → 강원(춘천) 값
+    assert y["items"]["housing"]["filled"] is True                 # 양양 2인 거래 없음 → 강원(춘천) 값
     assert y["items"]["housing"]["value"] == round(57.3 * 10_000)
     assert y["items"]["grocery"]["filled"] is True
     assert y["total"] == sum(i["value"] for i in y["items"].values())
 
 
-def test_sorted_and_filters():
-    res, _, _ = cm.recommend(REGIONS, {})
+def test_thin_samples_are_treated_as_missing():
+    thin = {**CHUNCHEON, "deals_s": cm.MIN_DEALS - 1}
+    assert cm.estimate(thin, ans(**SOLO))["housing"] is None
+    jeon_thin = cm.estimate(YANGYANG, ans(**SOLO, tenure="a"))      # 전세 3건 → 믿지 않음
+    assert jeon_thin["housing"] is None
+
+
+def test_where_questions_filter_regions():
+    sea = {x["region_code"] for x in cm.recommend(REGIONS, {"sea": "a"})[0]}
+    capital = {x["region_code"] for x in cm.recommend(REGIONS, {"capital": "a"})[0]}
+    assert sea == {"51830"} or cm.MIN_RESULTS > 1                    # 3곳 미만이면 조건이 풀린다 (아래 테스트)
+    big = REGIONS + [{**YANGYANG, "region_code": f"9{i:04d}", "sigungu": f"바닷가{i}"} for i in range(3)]
+    sea_big = {x["region_code"] for x in cm.recommend(big, {"sea": "a"})[0]}
+    assert "11680" not in sea_big and "51110" not in sea_big
+    rural = {x["region_code"] for x in cm.recommend(big, {"vibe": "a"})[0]}
+    assert all(r.startswith("9") or r == "51830" for r in rural)
+    air = {x["region_code"] for x in cm.recommend(big, {"airport": "a"})[0]}
+    assert "51110" not in air                                      # 춘천: 원주공항까지 51km
+    assert capital                                                  # 결과는 늘 비지 않는다
+
+
+def test_too_strict_conditions_are_relaxed_and_reported():
+    res, _, asm = cm.recommend(REGIONS, {"sea": "a", "capital": "a", "mart": "a"})
+    assert len(res) >= cm.MIN_RESULTS
+    assert asm["relaxed"] and asm["relaxed"][0] == "대형마트"         # WHERE 앞쪽부터 뺀다
+
+
+def test_sorted_ranks_and_national_percentile():
+    res, _, _ = cm.recommend(REGIONS, SOLO)
     assert [x["total"] for x in res] == sorted(x["total"] for x in res)
     assert [x["rank"] for x in res] == [1, 2, 3]
-    only_gw, _, _ = cm.recommend(REGIONS, {"sidos": ["강원"]})
-    assert {x["sido"] for x in only_gw} == {"강원"}
-    mart, _, _ = cm.recommend(REGIONS, {"need_mart": True})
-    assert "51830" not in {x["region_code"] for x in mart}
-    capped, _, _ = cm.recommend(REGIONS, {"tenure": "wolse", "housing_cap": 50})
-    assert {x["region_code"] for x in capped} == {"51110", "51830"}
+    assert [x["national_rank"] for x in res] == [1, 2, 3] and res[-1]["national_pct"] == 100
 
 
 def test_same_answers_same_result():
-    assert cm.recommend(REGIONS, {"dining": "outside"})[0] == cm.recommend(REGIONS, {"dining": "outside"})[0]
+    assert cm.recommend(REGIONS, {"dining": "a"})[0] == cm.recommend(REGIONS, {"dining": "a"})[0]
 
 
-def test_every_option_has_hint_and_coefficient():
-    coef = {"household": None, "tenure": None, "shower": "factor", "boiler": "factor", "grocery": "factor",
-            "dining": "meals", "trash": "bags", "transit": "trips"}
+def test_every_question_has_two_funny_options_with_hint_and_effect():
+    seen = set()
     for q in cm.QUESTIONS:
-        if q["kind"] != "single":
-            assert all(f.get("hint") for f in q["fields"])
-            continue
+        assert q["id"] not in seen and q["title"]
+        seen.add(q["id"])
+        assert [o["id"] for o in q["options"]] == ["a", "b"], q["id"]
         for o in q["options"]:
             assert o["label"] and o["hint"], (q["id"], o["id"])
-            if coef[q["id"]]:
-                assert isinstance(o[coef[q["id"]]], (int, float)), (q["id"], o["id"])
-        assert cm.DEFAULTS[q["id"]] in {o["id"] for o in q["options"]}
-    assert set(cm.HOUSEHOLD) == {o["id"] for o in cm.QUESTIONS[0]["options"]}
+        assert any(o["set"] for o in q["options"]), q["id"]         # 답이 무언가를 바꾼다
+        assert cm.DEFAULTS[q["id"]] in ("a", "b")
+    where_keys = {k for q in cm.QUESTIONS for o in q["options"] for k in o["set"].get("where", {})}
+    assert where_keys == {w[0] for w in cm.WHERE}
 
 
-def test_bad_option_rejected():
+def test_bad_answer_rejected():
     with pytest.raises(ValueError):
         cm.normalize({"shower": "bathtub"})
-
-
-def test_thin_samples_are_treated_as_missing():
-    # 양양 1인: 월세 거래 40건(믿음), 전세 3건(안 믿음) → '싼 쪽' 이어도 전세 값을 쓰지 않는다
-    e = cm.estimate(YANGYANG, answers(household="solo", tenure="any"))
-    assert e["housing"] == 350_000
-    thin = {**CHUNCHEON, "deals_s": cm.MIN_DEALS - 1}
-    assert cm.estimate(thin, answers(household="solo", tenure="wolse"))["housing"] is None
 
 
 def test_baselines_follow_official_sources():
@@ -123,5 +141,14 @@ def test_baselines_follow_official_sources():
     assert [cm.HOUSEHOLD[k]["water"] for k in ("solo", "duo", "family")] == [0.299, 0.598, 1.196]
     assert [cm.HOUSEHOLD[k]["gas_units"] for k in ("solo", "duo", "family")] == [2.63, 3.71, 5.25]
     assert [cm.HOUSEHOLD[k]["eaters"] for k in ("solo", "duo", "family")] == [1.0, 1.28, 2.43]   # 11.음식·숙박 비율
-    # 평균 가구(2.16명) 가스 = 559.6㎥/12 × 42.7MJ ÷ 516MJ ≈ 3.86단위
     assert cm._gas_units(cm.AVG_HOUSEHOLD_SIZE) == pytest.approx(3.86, abs=0.01)
+
+
+def test_card_text_and_level():
+    res, _, _ = cm.recommend(REGIONS, SOLO)
+    c = describe.card(res[0], next(r for r in REGIONS if r["region_code"] == res[0]["region_code"]))
+    assert c["archetype"] in describe.ARCHETYPE and c["nickname"] and c["text"]
+    assert res[0]["sigungu"] in c["text"] and "만 원" in c["text"]
+    assert describe.level(5)["name"] == "통장 수비 만렙" and describe.level(100)["name"] == "지갑 주의보"
+    sea = describe.card(res[0], YANGYANG)
+    assert any("해안선" in f for f in sea["facts"]) and any("양양공항" in f for f in sea["facts"])

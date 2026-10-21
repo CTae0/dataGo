@@ -286,3 +286,17 @@ docker compose exec db psql -U eodi -d eodi -f /sql/load_public_fee.sql
   - `mart.region_summary`에 전세 표본 수 `jeonse_deals_{s,m,l}` 추가
 - 테스트: `python -m pytest tests -q` (11개: 손계산 표본, 계수 독립성, 결측 채움, 필터, 표본 부족, 선택지 완전성)
 - 개발 서버: `.claude/launch.json`의 api는 `--reload` (api 폴더 변경 시 재시작). 변경이 안 잡히면 서버를 다시 띄울 것
+
+### 14. 질문지 v2: A/B 유머 질문 + '어디서' 질문 + 카드 3장 (2026-10-21)
+- 질문 15개(혼자 살면 14개), 모두 **유머 섞인 A/B 두 답 + 작은 글씨 기준** (예: "샤워할 때 물은?" A 부르주아처럼 콸콸 / B 3분 컷 군대식).
+  시도를 직접 고르지 않고 '어디서' 질문 6개로 고른다: 수도권 / 광역시 생활권 / 바다 / 공항 1시간 / 조용한 시골 / 대형마트.
+  문구·계수·조건: `api/cost_model.py`의 `QUESTIONS`(답마다 `set`), `WHERE`, `AIRPORT_KM`(직선 40km)
+  - 조건을 다 맞추는 곳이 3곳 미만이면 `WHERE` 앞쪽(대형마트 → 시골 → 공항 → 바다 → 광역시권 → 수도권)부터 빼고 화면에 알림
+- 지역 특징 `sql/mart/50_region_features.sql` → `mart.region_features` (PostGIS, 약 2분, `eodi_build_mart`에 추가)
+  - 해안선: 이웃 시군구와 맞닿지 않은 경계 길이, 휴전선 쪽 내륙 국경 제외 → 해안 80곳 (내륙 시도 오탐 0)
+  - 섬 10곳(거제·남해·강화·영도·영종 포함), 수도권 83, 광역시권 123, 공항 40km 이내 169
+  - 그림 유형 8가지: metropolis / commuter_town / small_city / harbor_city / seaside_village / mountain_village / farmland / island
+  - 공항 좌표는 정기편 공항 15곳의 근사값(소수 2~3자리)
+- 결과: 상위 3곳 카드 — 유형별 애니메이션 SVG(`web/src/Scene.jsx`, 동작 줄이기 설정이면 멈춤) + 별명 + 설명(`api/describe.py`,
+  받침에 따라 은/는) + 생활비 수준 배지(저렴한 순 상위 %: 통장 수비 만렙 / 알뜰 살림꾼 / 딱 평균 / 조금 플렉스 / 지갑 주의보)
+- 테스트 19개 (`python -m pytest tests -q`)

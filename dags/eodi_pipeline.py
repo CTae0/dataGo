@@ -87,8 +87,10 @@ with DAG("eodi_build_mart", schedule="30 23 * * *", start_date=START, catchup=Fa
     utility = bash("utility", "python -m pipeline.run_sql sql/mart/20_utility.sql")
     grocery = bash("grocery", "python -m pipeline.run_sql sql/mart/30_grocery.sql")
     dining = bash("dining", "python -m pipeline.run_sql sql/mart/40_dining.sql")
+    # 바다·공항·광역시권·그림 유형 (경계는 연 1회 바뀌지만 2분 남짓이라 매일 다시 만든다)
+    features = bash("region_features", "python -m pipeline.run_sql sql/mart/50_region_features.sql")
     summary = bash("region_summary", "python -m pipeline.run_sql sql/mart/90_region_summary.sql")
-    [rent, utility, grocery, dining] >> summary
+    [rent, utility, grocery, dining, features] >> summary
 
 # ── 지역 기준 (연간) ───────────────────────────────────────
 with DAG("eodi_dim_region_yearly", schedule="0 3 20 7 *", start_date=START, catchup=False, max_active_runs=1,

@@ -131,7 +131,7 @@ export default function App() {
             {metric && mapRegions && <Legend metric={metric} breaks={breaks} />}
           </section>
           {inResults ? (
-            <aside className="panel">
+            <aside className="panel wide">
               <Results spec={spec} data={rec} selected={selected} onSelect={setSelected} onRestart={() => setMode('quiz')} />
               {selected && regions?.[selected] && (
                 <DetailPanel code={selected} summary={regions[selected]} metrics={metrics} sources={sources}

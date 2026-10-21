@@ -64,56 +64,84 @@ HOUSEHOLD = {   # 문항 1
 # riders: 시내버스를 타는 사람 수 (가정)
 # eaters: 외식비 배수 — [외식] 근거. 1인 가구 외식비의 몇 배를 쓰는지 (2인 1.28, 4인 2.43)
 
+# 질문지: 질문마다 유머 섞인 A/B 두 답. 답 하나가 모델 값 하나(set)를 정한다.
+#   show_if: 앞 질문의 답에 따라 보이는 질문 / set.where: 지역 조건 (mart.region_features)
 QUESTIONS = [
-    {"id": "household", "title": "우리 집 인구는?", "kind": "single", "options": [
-        {"id": "solo", "label": "혼자가 최고", "hint": "1인 가구 · 40㎡ 이하 집 기준"},
-        {"id": "duo", "label": "둘이 딱 좋아", "hint": "2인 가구 · 40~60㎡ 집 기준"},
-        {"id": "family", "label": "우리 집은 작은 부족", "hint": "자녀 있는 가구(4인) · 60~85㎡ 집 기준"},
+    {"id": "living", "group": "생활", "title": "우리 집 식구는?", "options": [
+        {"id": "a", "label": "나 혼자 산다, 자유가 최고", "hint": "1인 가구 · 40㎡ 이하 집", "set": {"household": "solo"}},
+        {"id": "b", "label": "같이 사는 사람이 있다", "hint": "2인 이상", "set": {"household": "duo"}},
     ]},
-    {"id": "tenure", "title": "집은 어떻게 구할 계획?", "kind": "single", "options": [
-        {"id": "wolse", "label": "월세로 가볍게", "hint": "보증금+월세를 월 비용으로 환산"},
-        {"id": "jeonse", "label": "목돈 묻어 두는 전세파", "hint": "전세 보증금의 이자(연 5.5%)를 월 비용으로"},
-        {"id": "any", "label": "싼 쪽으로 알아서", "hint": "지역마다 월세·전세 중 더 싼 쪽"},
+    {"id": "family_size", "group": "생활", "title": "식탁에 둘러앉는 인원은?", "show_if": {"living": "b"}, "options": [
+        {"id": "a", "label": "둘이 딱 좋아, 오붓하게", "hint": "2인 가구 · 40~60㎡ 집", "set": {"household": "duo"}},
+        {"id": "b", "label": "우리 집은 작은 부족", "hint": "자녀 있는 4인 가구 · 60~85㎡ 집", "set": {"household": "family"}},
     ]},
-    {"id": "shower", "title": "샤워할 때 나는?", "kind": "single", "options": [
-        {"id": "quick", "label": "군대식 3분 샤워", "hint": "5분 이하", "factor": 0.7},
-        {"id": "normal", "label": "평범한 시민", "hint": "10분 안팎", "factor": 1.0},
-        {"id": "waterpark", "label": "워터파크 개장", "hint": "15분 이상 · 하루 2번", "factor": 1.5},
+    {"id": "tenure", "group": "생활", "title": "보증금은?", "options": [
+        {"id": "a", "label": "목돈 묻어 두는 전세파", "hint": "전세 보증금 이자(연 5.5%)를 월 비용으로", "set": {"tenure": "jeonse"}},
+        {"id": "b", "label": "통장은 가볍게, 월세파", "hint": "보증금+월세를 월 비용으로 환산", "set": {"tenure": "wolse"}},
     ]},
-    {"id": "boiler", "title": "겨울 보일러는?", "kind": "single", "options": [
-        {"id": "low", "label": "전기장판과 의리", "hint": "보일러는 거의 안 켬", "factor": 0.6},
-        {"id": "mid", "label": "적당히 따뜻하게", "hint": "외출할 땐 끄고, 잘 땐 약하게", "factor": 1.0},
-        {"id": "sauna", "label": "집이 곧 찜질방", "hint": "한겨울에도 반팔로 지냄", "factor": 1.6},
+    {"id": "shower", "group": "생활", "title": "샤워할 때 물은?", "options": [
+        {"id": "a", "label": "부르주아처럼 신경 안 쓰고 콸콸", "hint": "15분 이상 · 하루 두 번도 OK", "set": {"shower": 1.4}},
+        {"id": "b", "label": "3분 컷, 군대식 샤워", "hint": "5분 이내", "set": {"shower": 0.8}},
     ]},
-    {"id": "grocery", "title": "냉장고 사정은?", "kind": "single", "options": [
-        {"id": "empty", "label": "냉장고는 생수 보관함", "hint": "장보기 거의 안 함", "factor": 0.5},
-        {"id": "weekly", "label": "주말마다 장보기", "hint": "주 1회 장보기", "factor": 1.0},
-        {"id": "vip", "label": "마트 시식 코너 VIP", "hint": "주 2~3회 장보기", "factor": 1.4},
+    {"id": "boiler", "group": "생활", "title": "한겨울 우리 집 온도는?", "options": [
+        {"id": "a", "label": "집이 곧 찜질방, 한겨울에도 반팔", "hint": "보일러 늘 켜 둠", "set": {"boiler": 1.5}},
+        {"id": "b", "label": "전기장판과 의리, 보일러는 거의 안 켬", "hint": "외출·취침 땐 끔", "set": {"boiler": 0.7}},
     ]},
-    {"id": "dining", "title": "밖에서 사 먹는 끼니는?", "kind": "single", "options": [
-        {"id": "home", "label": "집밥 수호자", "hint": "주 0~1회", "meals": 3},
-        {"id": "half", "label": "반반 치킨처럼 반반", "hint": "주 2~4회", "meals": 12},
-        {"id": "outside", "label": "배달앱·식당 VIP", "hint": "주 5회 이상", "meals": 25},
+    {"id": "grocery", "group": "생활", "title": "우리 집 냉장고는?", "options": [
+        {"id": "a", "label": "마트 시식 코너 VIP, 늘 꽉 차 있음", "hint": "주 2~3회 장보기", "set": {"grocery": 1.3}},
+        {"id": "b", "label": "생수 보관함, 열면 메아리가 들림", "hint": "장보기 거의 안 함", "set": {"grocery": 0.6}},
     ]},
-    {"id": "trash", "title": "쓰레기봉투(20ℓ) 한 장으로?", "kind": "single", "options": [
-        {"id": "minimal", "label": "한 달 버티는 미니멀리스트", "hint": "월 1~2장", "bags": 2},
-        {"id": "weekly", "label": "일주일이면 꽉 참", "hint": "주 1장", "bags": 4},
-        {"id": "regular", "label": "분리수거장 단골 손님", "hint": "주 2장 이상", "bags": 9},
+    {"id": "dining", "group": "생활", "title": "밥은 주로?", "options": [
+        {"id": "a", "label": "배달앱 VVIP, 사장님이 내 이름을 앎", "hint": "주 5회 이상 사 먹음", "set": {"meals": 25}},
+        {"id": "b", "label": "집밥 수호자, 냉장고 털이 장인", "hint": "주 1회 이하", "set": {"meals": 4}},
     ]},
-    {"id": "transit", "title": "나의 이동 수단은?", "kind": "single", "options": [
-        {"id": "walk", "label": "두 발이 곧 대중교통", "hint": "버스는 거의 안 탐", "trips": 2},
-        {"id": "commute", "label": "출퇴근 버스 정기 승객", "hint": "월 40회 안팎", "trips": 44},
-        {"id": "bus_friend", "label": "버스 기사님과 인사하는 사이", "hint": "월 60회 이상", "trips": 66},
+    {"id": "trash", "group": "생활", "title": "쓰레기봉투(20ℓ)는?", "options": [
+        {"id": "a", "label": "분리수거장 단골 손님", "hint": "주 2장 이상", "set": {"bags": 9}},
+        {"id": "b", "label": "한 장으로 한 달 버티는 미니멀리스트", "hint": "월 1~2장", "set": {"bags": 2}},
     ]},
-    {"id": "where", "title": "어디서, 얼마까지?", "kind": "filters",
-     "fields": [
-         {"id": "sidos", "label": "살고 싶은 시도", "hint": "비워 두면 전국 어디든", "type": "multi_sido"},
-         {"id": "housing_cap", "label": "월 주거비 상한 (만 원)", "hint": "비워 두면 상관없음", "type": "number"},
-         {"id": "need_mart", "label": "근처에 대형마트는 있어야지", "hint": "대형마트·SSM 조사 점포가 있는 시군구만", "type": "bool"},
-     ]},
+    {"id": "transit", "group": "생활", "title": "출퇴근은?", "options": [
+        {"id": "a", "label": "버스 기사님과 인사하는 사이", "hint": "버스 월 40회 이상", "set": {"trips": 44}},
+        {"id": "b", "label": "두 발 또는 내 차가 최고", "hint": "버스는 거의 안 탐", "set": {"trips": 2}},
+    ]},
+    {"id": "capital", "group": "어디서", "title": "서울과의 거리는?", "options": [
+        {"id": "a", "label": "수도권 아니면 안 돼, 한강 뷰는 못 참지", "hint": "서울·경기·인천만", "set": {"where": {"capital": True}}},
+        {"id": "b", "label": "서울은 가끔 놀러 가면 충분", "hint": "상관없음", "set": {}},
+    ]},
+    {"id": "metro", "group": "어디서", "title": "도시의 크기는?", "options": [
+        {"id": "a", "label": "광역시급 생활권, 지하철 소리가 자장가", "hint": "특별·광역시 또는 그와 맞닿은 시군구", "set": {"where": {"metro_area": True}}},
+        {"id": "b", "label": "작은 도시도 시골도 다 좋아", "hint": "상관없음", "set": {}},
+    ]},
+    {"id": "sea", "group": "어디서", "title": "바다는?", "options": [
+        {"id": "a", "label": "창문 열면 바다 냄새가 나야 해", "hint": "바다와 맞닿은 시군구", "set": {"where": {"coastal": True}}},
+        {"id": "b", "label": "바다는 여행 갈 때만 보면 충분", "hint": "상관없음", "set": {}},
+    ]},
+    {"id": "airport", "group": "어디서", "title": "비행기는?", "options": [
+        {"id": "a", "label": "공항까지 1시간 안, 훌쩍 떠나는 게 낙", "hint": "가장 가까운 공항까지 직선 40km 이내 (차로 1시간 안팎)", "set": {"where": {"airport": True}}},
+        {"id": "b", "label": "비행기는 1년에 한 번 탈까 말까", "hint": "상관없음", "set": {}},
+    ]},
+    {"id": "vibe", "group": "어디서", "title": "동네 분위기는?", "options": [
+        {"id": "a", "label": "논밭과 산이 보이는 조용한 시골", "hint": "군 지역", "set": {"where": {"rural": True}}},
+        {"id": "b", "label": "사람 사는 곳이면 어디든 OK", "hint": "상관없음", "set": {}},
+    ]},
+    {"id": "mart", "group": "어디서", "title": "장 볼 때는?", "options": [
+        {"id": "a", "label": "대형마트 카트를 끌어야 장 본 기분", "hint": "대형마트·SSM 조사 점포가 있는 시군구", "set": {"where": {"need_mart": True}}},
+        {"id": "b", "label": "동네 슈퍼·시장이면 충분", "hint": "상관없음", "set": {}},
+    ]},
 ]
-DEFAULTS = {"household": "solo", "tenure": "any", "shower": "normal", "boiler": "mid", "grocery": "weekly",
-            "dining": "half", "trash": "weekly", "transit": "commute", "sidos": [], "housing_cap": None, "need_mart": False}
+DEFAULTS = {"living": "a", "family_size": "a", "tenure": "b", "shower": "b", "boiler": "b", "grocery": "b",
+            "dining": "b", "trash": "b", "transit": "a", "capital": "b", "metro": "b", "sea": "b", "airport": "b",
+            "vibe": "b", "mart": "b"}
+# 지역 조건 ↔ mart.region_features. 조건을 다 맞추는 곳이 MIN_RESULTS 미만이면 앞에서부터 하나씩 뺀다
+WHERE = [  # (키, 화면 이름, 지역이 조건을 맞추는지)
+    ("need_mart", "대형마트", lambda r: (r.get("grocery_stores") or 0) > 0),
+    ("rural", "조용한 시골", lambda r: r.get("sigungu_type") == "군"),
+    ("airport", "공항 1시간", lambda r: (r.get("airport_km") or 999) <= AIRPORT_KM),
+    ("coastal", "바다", lambda r: bool(r.get("is_coastal"))),
+    ("metro_area", "광역시 생활권", lambda r: bool(r.get("is_metro_area"))),
+    ("capital", "수도권", lambda r: bool(r.get("is_capital"))),
+]
+MIN_RESULTS = 3
+AIRPORT_KM = 40   # 직선거리. 도로는 보통 1.3배 → 약 50km, 차로 1시간 안팎
 
 ITEMS = ["housing", "water", "gas", "trash", "transit", "dining", "grocery"]
 ITEM_LABEL = {"housing": "주거", "water": "상하수도", "gas": "도시가스", "trash": "쓰레기봉투",
@@ -122,22 +150,28 @@ ITEM_SOURCE = {"housing": "molit_rent", "water": "std_water_sewage_fee", "gas": 
                "trash": "std_trash_bag_price", "transit": "mois_public_fee", "dining": "mois_dining", "grocery": "kca_price"}
 
 
-def _opt(qid, oid):
-    q = next(q for q in QUESTIONS if q["id"] == qid)
-    return next(o for o in q["options"] if o["id"] == oid)
+def visible(q, ans):
+    """앞 질문 답에 따라 이 질문을 보여 줄지 (show_if)"""
+    return all(ans.get(k) == v for k, v in q.get("show_if", {}).items())
 
 
 def normalize(answers):
-    """기본값 채우고 잘못된 선택지는 막는다 (ValueError)"""
-    a = {**DEFAULTS, **{k: v for k, v in (answers or {}).items() if v is not None}}
+    """답(질문 id → 'a'/'b') → 계산용 값. 잘못된 답은 ValueError"""
+    raw = {**DEFAULTS, **{k: v for k, v in (answers or {}).items() if v is not None}}
+    p = {"household": "solo", "tenure": "wolse", "shower": 1.0, "boiler": 1.0, "grocery": 1.0,
+         "meals": 12, "bags": 4, "trips": 44, "where": {}}
     for q in QUESTIONS:
-        if q["kind"] == "single" and a[q["id"]] not in {o["id"] for o in q["options"]}:
-            raise ValueError(f"{q['id']}: 알 수 없는 선택지 {a[q['id']]!r}")
-    a["sidos"] = list(a.get("sidos") or [])
-    cap = a.get("housing_cap")
-    a["housing_cap"] = float(cap) if cap not in (None, "") else None
-    a["need_mart"] = bool(a.get("need_mart"))
-    return a
+        if not visible(q, raw):
+            continue
+        opt = next((o for o in q["options"] if o["id"] == raw.get(q["id"])), None)
+        if opt is None:
+            raise ValueError(f"{q['id']}: 알 수 없는 답 {raw.get(q['id'])!r} (a 또는 b)")
+        for k, v in opt["set"].items():
+            if k == "where":
+                p["where"].update(v)
+            else:
+                p[k] = v
+    return {"answers": {q["id"]: raw[q["id"]] for q in QUESTIONS if visible(q, raw)}, **p}
 
 
 def _housing(r, hh, tenure):
@@ -161,12 +195,12 @@ def estimate(r, answers):
     hh = HOUSEHOLD[a["household"]]
     out = {
         "housing": _housing(r, hh, a["tenure"]),
-        "water": r["water_sewer"] * hh["water"] * _opt("shower", a["shower"])["factor"] if r.get("water_sewer") else None,
-        "gas": r["gas_total"] * hh["gas_units"] * _opt("boiler", a["boiler"])["factor"] if r.get("gas_total") else None,
-        "trash": r["trash_20l"] * _opt("trash", a["trash"])["bags"] * hh["trash"] if r.get("trash_20l") else None,
-        "transit": r["bus_card"] * _opt("transit", a["transit"])["trips"] * hh["riders"] if r.get("bus_card") else None,
-        "dining": r["meal_avg"] * _opt("dining", a["dining"])["meals"] * hh["eaters"] if r.get("meal_avg") else None,
-        "grocery": (hh["grocery_base"] * _opt("grocery", a["grocery"])["factor"] * r["grocery_index"] / 100
+        "water": r["water_sewer"] * hh["water"] * a["shower"] if r.get("water_sewer") else None,
+        "gas": r["gas_total"] * hh["gas_units"] * a["boiler"] if r.get("gas_total") else None,
+        "trash": r["trash_20l"] * a["bags"] * hh["trash"] if r.get("trash_20l") else None,
+        "transit": r["bus_card"] * a["trips"] * hh["riders"] if r.get("bus_card") else None,
+        "dining": r["meal_avg"] * a["meals"] * hh["eaters"] if r.get("meal_avg") else None,
+        "grocery": (hh["grocery_base"] * a["grocery"] * r["grocery_index"] / 100
                     if r.get("grocery_index") else None),
     }
     return {k: (round(v) if v is not None else None) for k, v in out.items()}
@@ -177,8 +211,23 @@ GRAN_FIELD = {"housing": None, "water": "water_sewer_gran", "gas": None, "trash"
 SIDO_LEVEL = {"gas", "transit"}   # 원천 자체가 시도 평균
 
 
+def _items(r, e, by_sido, nat):
+    items = {}
+    for k in ITEMS:
+        v, filled = e[k], False
+        if v is None:
+            pool = by_sido.get((r["sido"], k)) or nat.get(k)
+            v, filled = (round(median(pool)) if pool else 0), True
+        gran = "sido" if k in SIDO_LEVEL else (r.get(GRAN_FIELD[k]) if GRAN_FIELD[k] else "exact")
+        items[k] = {"label": ITEM_LABEL[k], "value": v, "filled": filled, "gran": gran, "source": ITEM_SOURCE[k]}
+    return items
+
+
 def recommend(regions, answers):
-    """regions: /api/regions 행 목록. → (결과 목록, 가정). 결측 항목은 같은 시도 중위값(없으면 전국 중위값)으로 채우고 filled=True"""
+    """regions: 요약 행(+ mart.region_features 칸). → (결과, 정규화된 답, 가정)
+    - 결측 항목은 같은 시도 중위값(없으면 전국 중위값)으로 채우고 filled=True
+    - 지역 조건을 다 맞추는 곳이 MIN_RESULTS 미만이면 WHERE 앞쪽 조건부터 빼고 relaxed에 남긴다
+    - national_rank / national_pct: 지역 조건과 상관없이 전국 시군구 중 몇 번째로 싼지"""
     a = normalize(answers)
     est = {r["region_code"]: estimate(r, a) for r in regions}
     by_sido, nat = {}, {}
@@ -187,39 +236,40 @@ def recommend(regions, answers):
             if v is not None:
                 by_sido.setdefault((r["sido"], k), []).append(v)
                 nat.setdefault(k, []).append(v)
-    results = []
+    everyone = []
     for r in regions:
-        if a["sidos"] and r["sido"] not in a["sidos"]:
-            continue
-        if a["need_mart"] and not (r.get("grocery_stores") or 0) > 0:
-            continue
-        e = est[r["region_code"]]
-        if a["housing_cap"] is not None and (e["housing"] is None or e["housing"] > a["housing_cap"] * 10_000):
-            continue
-        items = {}
-        for k in ITEMS:
-            v, filled = e[k], False
-            if v is None:
-                pool = by_sido.get((r["sido"], k)) or nat.get(k)
-                v, filled = (round(median(pool)) if pool else 0), True
-            gran = "sido" if k in SIDO_LEVEL else (r.get(GRAN_FIELD[k]) if GRAN_FIELD[k] else "exact")
-            items[k] = {"label": ITEM_LABEL[k], "value": v, "filled": filled, "gran": gran, "source": ITEM_SOURCE[k]}
-        results.append({"region_code": r["region_code"], "sido": r["sido"], "sigungu": r["sigungu"],
-                        "total": sum(i["value"] for i in items.values()), "items": items})
-    results.sort(key=lambda x: (x["total"], x["region_code"]))
+        items = _items(r, est[r["region_code"]], by_sido, nat)
+        everyone.append({"region_code": r["region_code"], "sido": r["sido"], "sigungu": r["sigungu"],
+                         "total": sum(i["value"] for i in items.values()), "items": items, "_row": r})
+    everyone.sort(key=lambda x: (x["total"], x["region_code"]))
+    n = len(everyone)
+    for i, x in enumerate(everyone, 1):
+        x["national_rank"], x["national_pct"] = i, max(1, -(-i * 100 // n))   # 싼 순 상위 몇 %인지 (올림, 최소 1)
+
+    wanted = [w for w in WHERE if a["where"].get(w[0])]
+    relaxed = []
+    while True:
+        results = [x for x in everyone if all(ok(x["_row"]) for _, _, ok in wanted)]
+        if len(results) >= MIN_RESULTS or not wanted:
+            break
+        relaxed.append(wanted.pop(0)[1])
+    out = []
     for i, x in enumerate(results, 1):
-        x["rank"] = i
+        out.append({**{k: v for k, v in x.items() if k != "_row"}, "rank": i})
     hh = HOUSEHOLD[a["household"]]
     assumptions = {
         "rate": RATE, "household": hh,
-        "factors": {q["id"]: _opt(q["id"], a[q["id"]]) for q in QUESTIONS if q["kind"] == "single"},
+        "params": {k: a[k] for k in ("tenure", "shower", "boiler", "grocery", "meals", "bags", "trips")},
+        "where": [label for key, label, _ in WHERE if a["where"].get(key) and label not in relaxed],
+        "relaxed": relaxed,
         "notes": [
             "주거비는 최근 12개월 실거래 중위값이고, 전세는 보증금 이자(연 5.5%)로 환산했습니다.",
             "상하수도는 기본요금이 빠져 있어 실제보다 조금 낮습니다.",
             "도시가스·버스는 시도 평균 요금, 외식비는 시도 평균 가격입니다. 가구원 수에 따른 외식비 배수는 가계동향조사 음식·숙박 지출 비율(1인 대비 2인 1.28배, 4인 2.43배)을 썼습니다.",
             "장보기는 가구원 수별 식료품비(국가데이터처 가계동향조사 2026년 1~2분기)에 지역 장바구니 지수를 곱한 값입니다 (대형마트·SSM 기준).",
             "물 사용량은 1인 하루 196.6ℓ(2024년 상수도 통계 가정용), 도시가스는 가구당 연 559.6㎥(한국가스공사 2022년)를 기준으로 했습니다. 가스의 가구원 수별 차이는 추정입니다.",
+            "바다는 해안선이 3km 이상인 시군구, 공항은 가장 가까운 공항까지 직선 40km 이내(도로 약 1.3배, 차로 1시간 안팎), 광역시 생활권은 특별·광역시와 그와 맞닿은 시군구입니다.",
             "모든 값은 추정치이며 실제와 다를 수 있습니다.",
         ],
     }
-    return results, a, assumptions
+    return out, a, assumptions

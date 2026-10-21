@@ -19,7 +19,7 @@ import psycopg2.extras
 from fastapi import FastAPI, HTTPException
 
 import molit_rent as common
-from api import cost_model
+from api import cost_model, describe
 
 common.load_env()
 app = FastAPI(title="어디 살까? API", version="0.1.0")
@@ -81,18 +81,26 @@ def worse(a, b):
     return a if GRAN_RANK.get(a, 9) >= GRAN_RANK.get(b, 9) else b
 
 
+FEATURE_COLS = ("sigungu_type", "coast_km", "is_coastal", "is_island", "is_capital", "is_metro_area",
+                "is_metro_core", "airport_name", "airport_km", "archetype")
+
+
 def region_rows(cur, code=None):
     dining = table_exists(cur, "mart.dining_region")
+    features = table_exists(cur, "mart.region_features")   # 바다·공항·광역시권 등 (sql/mart/50_region_features.sql)
     cur.execute(f"""
         SELECT s.*, {"d.meal_index, d.meal_avg, d.dining_gran, d.dining_ym" if dining
                      else "NULL::numeric AS meal_index, NULL::numeric AS meal_avg, NULL::text AS dining_gran, NULL AS dining_ym"}
+               {", " + ", ".join("f." + c for c in FEATURE_COLS) if features else ""}
         FROM mart.region_summary s
         {"LEFT JOIN mart.dining_region d USING (region_code)" if dining else ""}
+        {"LEFT JOIN mart.region_features f USING (region_code)" if features else ""}
         {"WHERE s.region_code = %s" if code else ""}
         ORDER BY s.region_code""", (code,) if code else None)
     out = []
     for r in cur.fetchall():
-        r = {k: (num(v) if isinstance(v, (int, float)) or type(v).__name__ == "Decimal" else v) for k, v in r.items()}
+        r = {k: (num(v) if not isinstance(v, bool) and (isinstance(v, (int, float)) or type(v).__name__ == "Decimal") else v)
+             for k, v in r.items()}
         ws = (r["water_20m3"] or 0) + (r["sewer_20m3"] or 0) if r["water_20m3"] or r["sewer_20m3"] else None
         r["water_sewer"] = ws
         r["water_sewer_gran"] = worse(r["water_gran"], r["sewer_gran"])
@@ -162,10 +170,7 @@ def region_detail(code: str):
 @app.get("/api/questions")
 def questions():
     """질문지 정의 (문구·작은 글씨 기준·기본값). 문구는 api/cost_model.py의 QUESTIONS에서 고친다."""
-    with cursor() as cur:
-        cur.execute("SELECT DISTINCT sido, sido_code FROM dim.region WHERE is_leaf ORDER BY sido_code")
-        sidos = [r["sido"] for r in cur.fetchall()]
-    return {"questions": cost_model.QUESTIONS, "defaults": cost_model.DEFAULTS, "sidos": sidos,
+    return {"questions": cost_model.QUESTIONS, "defaults": cost_model.DEFAULTS,
             "items": [{"id": k, "label": cost_model.ITEM_LABEL[k], "source": cost_model.ITEM_SOURCE[k]}
                       for k in cost_model.ITEMS]}
 
@@ -179,6 +184,9 @@ def recommend(answers: dict):
         results, normalized, assumptions = cost_model.recommend(rows, answers)
     except ValueError as e:
         raise HTTPException(422, str(e))
+    by_code = {r["region_code"]: r for r in rows}
+    for x in results[:3]:   # 카드 3장: 그림 유형·별명·설명·생활비 수준
+        x["card"] = describe.card(x, by_code.get(x["region_code"]))
     return {"answers": normalized, "count": len(results), "results": results, "assumptions": assumptions}
 
 
