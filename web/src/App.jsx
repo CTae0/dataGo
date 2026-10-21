@@ -45,6 +45,19 @@ const EST_METRIC = {
             'mois_public_fee', 'mois_dining', 'kca_price', 'opinet_price'],
 }
 
+// 휴대폰 폭(styles.css의 760px 기준과 같게)인지. 창 크기가 바뀌면 다시 계산한다
+function useIsMobile(query = '(max-width: 760px)') {
+  const get = () => typeof window !== 'undefined' && window.matchMedia(query).matches
+  const [m, setM] = useState(get)
+  useEffect(() => {
+    const mq = window.matchMedia(query)
+    const on = () => setM(mq.matches)
+    mq.addEventListener('change', on)
+    return () => mq.removeEventListener('change', on)
+  }, [query])
+  return m
+}
+
 export default function App() {
   const [metrics, setMetrics] = useState([])
   const [regions, setRegions] = useState(null)   // region_code → 요약 행
@@ -58,6 +71,8 @@ export default function App() {
   const [answers, setAnswers] = useState(readAnswers)
   const [rec, setRec] = useState(null)           // /api/recommend 응답
   const [error, setError] = useState(null)
+  const isMobile = useIsMobile()
+  const [mapOpen, setMapOpen] = useState(false)   // 휴대폰 결과 화면: 지도는 눌렀을 때만 띄운다
 
   useEffect(() => {
     Promise.all([apiJSON('/api/metrics'), apiJSON('/api/regions'), apiJSON('/api/sources'),
@@ -81,6 +96,7 @@ export default function App() {
   }, [answers])
 
   const inResults = mode === 'results' && rec && spec   // 질문 정의(spec)가 와야 결과 문구를 만들 수 있다
+  const hideMap = isMobile && inResults && !mapOpen
   const metric = inResults ? EST_METRIC : metrics.find((m) => m.id === metricId)
 
   // 결과 모드: 지도에 '내 예상 월 생활비'를 넣는다 (조건 밖 지역은 null → 회색)
@@ -102,7 +118,7 @@ export default function App() {
     return Object.entries(g)
   }, [metrics])
 
-  const finishQuiz = (a) => { writeAnswers(a); setSelected(null); setAnswers({ ...a }) }
+  const finishQuiz = (a) => { setMapOpen(false); writeAnswers(a); setSelected(null); setAnswers({ ...a }) }
   const backToMap = () => { writeAnswers(null); setAnswers(null); setRec(null); setMode('explore'); setSelected(null) }
   const goHome = () => { writeAnswers(null); setAnswers(null); setRec(null); setMode('home'); setSelected(null) }
 
@@ -125,8 +141,13 @@ export default function App() {
             </label>
           </>
         )}
+        {inResults && isMobile && (
+          <button type="button" className="secondary" aria-expanded={mapOpen} onClick={() => setMapOpen(!mapOpen)}>
+            {mapOpen ? '지도 닫기' : '🗺 지도로 보기'}
+          </button>
+        )}
         {inResults && <button type="button" className="secondary" onClick={backToMap}>지표 지도로</button>}
-        {metric && (mode === 'explore' || inResults) && <p className="metric-detail">{metric.detail}</p>}
+        {metric && (mode === 'explore' || (inResults && !hideMap)) && <p className="metric-detail">{metric.detail}</p>}
         {mode === 'home' && <button type="button" className="secondary topbar-right" onClick={() => setMode('explore')}>지도로 둘러보기</button>}
       </header>
 
@@ -138,15 +159,17 @@ export default function App() {
         </main>
       ) : (
         <main className="body">
-          <section className="map-wrap">
-            {error && <div className="error">지금 서버가 쉬는 중이에요. 잠시 뒤 새로고침해 주세요.</div>}
-            {!error && (!geo || !regions) && <div className="loading">지도를 불러오는 중…</div>}
-            {geo && mapRegions && metric && (
-              <MapView geo={geo} regions={mapRegions} metric={metric} breaks={breaks}
-                       selected={selected} onSelect={setSelected} />
-            )}
-            {metric && mapRegions && <Legend metric={metric} breaks={breaks} />}
-          </section>
+          {!hideMap && (
+            <section className="map-wrap">
+              {error && <div className="error">지금 서버가 쉬는 중이에요. 잠시 뒤 새로고침해 주세요.</div>}
+              {!error && (!geo || !regions) && <div className="loading">지도를 불러오는 중…</div>}
+              {geo && mapRegions && metric && (
+                <MapView geo={geo} regions={mapRegions} metric={metric} breaks={breaks}
+                         selected={selected} onSelect={setSelected} />
+              )}
+              {metric && mapRegions && <Legend metric={metric} breaks={breaks} />}
+            </section>
+          )}
           {inResults ? (
             <aside className="panel wide">
               <Results spec={spec} data={rec} selected={selected} onSelect={setSelected} onRestart={() => setMode('quiz')} />

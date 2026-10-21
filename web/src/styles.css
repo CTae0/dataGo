@@ -286,3 +286,9 @@ html, body, #root { height: 100%; margin: 0; }
 /* 첫 화면 예시: 1등 동네 카드 하나 */
 .podium.home-one { grid-template-columns: minmax(0, 420px); }
 .pcard-rank-inline { font-size: 12px; font-weight: 700; color: var(--accent); }
+
+/* 2·3위 카드: '더 보기'로 펼친다. 넓은 화면은 두 장 나란히 */
+.more-cards { width: 100%; margin: 2px 0 4px; }
+.podium.runners { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); margin-top: 8px; }
+.panel.wide .podium.runners { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 760px) { .panel.wide .podium.runners { grid-template-columns: 1fr; } }
