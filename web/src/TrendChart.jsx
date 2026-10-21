@@ -62,8 +62,8 @@ export default function TrendChart({ rows }) {
         <div className="chart-box">
           <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="면적대별 월 환산 주거비 추이"
                onPointerMove={onMove} onPointerLeave={() => setHover(null)}>
-            {ticks.map((t) => (
-              <g key={t}>
+            {ticks.map((t, i) => (
+              <g key={i}>
                 <line x1={PAD.l} x2={W - PAD.r} y1={y(t)} y2={y(t)} className="grid" />
                 <text x={PAD.l - 6} y={y(t) + 3} className="axis" textAnchor="end">{t}</text>
               </g>

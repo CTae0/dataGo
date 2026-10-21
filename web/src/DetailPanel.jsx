@@ -14,7 +14,7 @@ function Gran({ g }) {
   return <span className={`badge ${isFallback(g) ? 'fallback' : ''}`}>{GRAN_LABEL[g] || g}</span>
 }
 
-export default function DetailPanel({ code, summary, metrics, sources, onClose }) {
+export default function DetailPanel({ code, summary, metrics, sources, onClose, embedded = false }) {
   const [detail, setDetail] = useState(null)
   const [error, setError] = useState(null)
   useEffect(() => {
@@ -32,7 +32,7 @@ export default function DetailPanel({ code, summary, metrics, sources, onClose }
   const usedSources = new Set([...(summary.sources || []), ...((detail?.dining?.sources) || []), 'vworld_sigungu'])
 
   return (
-    <aside className="panel" aria-label={`${summary.sido} ${summary.sigungu} 상세`}>
+    <aside className={`panel ${embedded ? 'embedded' : ''}`} aria-label={`${summary.sido} ${summary.sigungu} 상세`}>
       <div className="panel-head">
         <div>
           <div className="muted">{summary.sido}</div>

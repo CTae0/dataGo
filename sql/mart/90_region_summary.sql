@@ -15,7 +15,10 @@ WITH rent AS (
            max(monthly_cost_median)   FILTER (WHERE size_band = 'l') AS cost_l,
            max(deals) FILTER (WHERE size_band = 's') AS deals_s,
            max(deals) FILTER (WHERE size_band = 'm') AS deals_m,
-           max(deals) FILTER (WHERE size_band = 'l') AS deals_l
+           max(deals) FILTER (WHERE size_band = 'l') AS deals_l,
+           max(jeonse_deals) FILTER (WHERE size_band = 's') AS jeonse_deals_s,   -- 전세 중위값의 표본 수
+           max(jeonse_deals) FILTER (WHERE size_band = 'm') AS jeonse_deals_m,
+           max(jeonse_deals) FILTER (WHERE size_band = 'l') AS jeonse_deals_l
     FROM mart.rent_recent GROUP BY region_code
 ),
 util AS (
@@ -46,6 +49,7 @@ SELECT r.region_code, r.sido_code, r.sido, r.sigungu, r.level, r.parent_code,
        rent.rent_from_ym, rent.rent_to_ym, rent.rent_deals,
        rent.jeonse_s, rent.jeonse_m, rent.jeonse_l, rent.cost_s, rent.cost_m, rent.cost_l,
        rent.deals_s, rent.deals_m, rent.deals_l,
+       rent.jeonse_deals_s, rent.jeonse_deals_m, rent.jeonse_deals_l,
        util.water_20m3, util.water_gran, util.sewer_20m3, util.sewer_gran,
        util.trash_20l, util.trash_gran, util.gas_total, util.bus_card, util.taxi,
        groc.grocery_index, groc.grocery_gran, groc.grocery_fresh_index, groc.grocery_processed_index,

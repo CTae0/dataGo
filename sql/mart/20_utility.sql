@@ -28,11 +28,22 @@ tier_sector AS (   -- 기관마다 '가정용'이 여러 갈래면 정확히 '�
     SELECT DISTINCT ON (source_key, kind) source_key, kind, sector
     FROM tiers ORDER BY source_key, kind, (sector = '가정용') DESC, sector
 ),
-water AS (
-    SELECT t.source_key, CASE t.kind WHEN '상수도' THEN 'water_20m3' ELSE 'sewer_20m3' END AS item,
-           sum(greatest(0, least(20, t.hi) - t.lo) * t.unit_price) AS value, max(t.data_date) AS ref_date
+-- 1㎥씩 20번: 그 ㎥가 속한 구간의 단가를 더한다. 구간이 겹치면(원천에 같은 시작점 행이 수천 개인 기관이 있다,
+-- 예: 군포시 '1~3928', '1~559354' …) 겹친 단가의 중위값 → 행이 몇 개든 20㎥ 요금이 부풀지 않는다.
+per_m3 AS (
+    SELECT t.source_key, t.kind, m.n,
+           percentile_cont(0.5) WITHIN GROUP (ORDER BY t.unit_price) AS price, max(t.data_date) AS data_date
     FROM tiers t JOIN tier_sector s USING (source_key, kind, sector)
+    CROSS JOIN generate_series(1, 20) AS m(n)
+    WHERE m.n > t.lo AND m.n <= t.hi
+    GROUP BY 1, 2, 3
+),
+water AS (
+    SELECT source_key, CASE kind WHEN '상수도' THEN 'water_20m3' ELSE 'sewer_20m3' END AS item,
+           sum(price) AS value, max(data_date) AS ref_date
+    FROM per_m3
     GROUP BY 1, 2
+    HAVING count(*) = 20     -- 1~20㎥를 다 덮는 구간표만 (빈 구간이 있으면 신뢰하지 않음)
 ),
 -- 행안부 시도 평균: 최신 연월
 mois_last AS (SELECT max(ym) AS ym FROM raw.mois_public_fee WHERE level = 'sido'),

@@ -261,3 +261,19 @@ docker compose exec db psql -U eodi -d eodi -f /sql/load_public_fee.sql
   (worker는 setWorkerUrl + optimizeDeps.exclude로 로드됨, 새 콘솔 오류 없음). 다음: map 'load' 이벤트가 오는지, StrictMode 이중 마운트, style 확인
 - 실행: `.claude/launch.json`의 api(8000), web(5173)
 - 전월세 백필 1일차 끝(6,000회, 오늘 사용량 meta.api_usage에 반영). 남은 기간은 `eodi_rent_backfill` DAG를 켜면 이어받음
+
+### 13. 질문지 추천 v1 (2026-10-21)
+- 질문 9개(유머 말투 + 선택지마다 작은 글씨 기준) → 시군구별 예상 월 생활비 → 순위 카드·내역 막대·지도
+  - 질문 문구·계수: `api/cost_model.py`의 `QUESTIONS`, `HOUSEHOLD` (문구만 바꿀 땐 여기만). 말투 원칙: 재미있게, 비하 금지, 기준 문구 필수
+  - API: `GET /api/questions`, `POST /api/recommend` (조건에 맞는 시군구 전체를 합계 오름차순, 항목별 금액·정밀도·출처·채움 여부, 계산 가정)
+  - 화면: `web/src/Questionnaire.jsx`, `Results.jsx` (상위 10곳 카드 + 표 보기 + 나머지 목록 + 가정 보기). 답변은 URL `?a=`에 저장
+- 모델 (항목별 원/월)
+  - 주거: 월세 환산 `cost_*` 또는 전세 `jeonse_*` × 5.5% / 12. **거래 10건 미만 면적대 값은 믿지 않음** (`MIN_DEALS`)
+  - 상하수도·가스·봉투·버스·외식·장보기 = 지역 값 × 가구원 배율 × 답변 계수. 결측은 같은 시도 중위값으로 채우고 `filled` 표시
+  - **TODO 출처**: 가구원별 기준 식료품비(22/38/62만 원), 가스 월 사용량(516MJ 2.5/3.5/5단위), 상하수도 가구원 배율 — 통계청·환경부 자료로 교체할 것
+- 데이터 수정
+  - `sql/mart/20_utility.sql`: 상하수도 20㎥를 1㎥씩 해당 구간 단가로 더하도록 변경 (구간이 겹치면 중위 단가). 군포시 원천에 '1~N' 행이 수천 개라
+    예전 계산이 월 2.7억 원으로 부풀었음 → 14,600원
+  - `mart.region_summary`에 전세 표본 수 `jeonse_deals_{s,m,l}` 추가
+- 테스트: `python -m pytest tests -q` (11개: 손계산 표본, 계수 독립성, 결측 채움, 필터, 표본 부족, 선택지 완전성)
+- 개발 서버: `.claude/launch.json`의 api는 `--reload` (api 폴더 변경 시 재시작). 변경이 안 잡히면 서버를 다시 띄울 것

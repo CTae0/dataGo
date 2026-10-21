@@ -19,6 +19,7 @@ import psycopg2.extras
 from fastapi import FastAPI, HTTPException
 
 import molit_rent as common
+from api import cost_model
 
 common.load_env()
 app = FastAPI(title="어디 살까? API", version="0.1.0")
@@ -156,6 +157,29 @@ def region_detail(code: str):
                     if hasattr(v, "isoformat"):
                         dining[k] = v.isoformat()
     return {"summary": rows[0], "rent_trend": trend, "utility": utility, "grocery": grocery, "dining": dining}
+
+
+@app.get("/api/questions")
+def questions():
+    """질문지 정의 (문구·작은 글씨 기준·기본값). 문구는 api/cost_model.py의 QUESTIONS에서 고친다."""
+    with cursor() as cur:
+        cur.execute("SELECT DISTINCT sido, sido_code FROM dim.region WHERE is_leaf ORDER BY sido_code")
+        sidos = [r["sido"] for r in cur.fetchall()]
+    return {"questions": cost_model.QUESTIONS, "defaults": cost_model.DEFAULTS, "sidos": sidos,
+            "items": [{"id": k, "label": cost_model.ITEM_LABEL[k], "source": cost_model.ITEM_SOURCE[k]}
+                      for k in cost_model.ITEMS]}
+
+
+@app.post("/api/recommend")
+def recommend(answers: dict):
+    """답변 → 조건에 맞는 시군구 전체를 예상 월 생활비 오름차순으로 (항목별 금액·정밀도·출처, 계산 가정 포함)"""
+    with cursor() as cur:
+        rows = region_rows(cur)
+    try:
+        results, normalized, assumptions = cost_model.recommend(rows, answers)
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+    return {"answers": normalized, "count": len(results), "results": results, "assumptions": assumptions}
 
 
 @app.get("/api/sources")
