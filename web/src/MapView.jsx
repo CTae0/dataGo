@@ -41,13 +41,21 @@ function withValues(geo, regions, metric, breaks) {
   }
 }
 
-export default function MapView({ geo, regions, metric, breaks, selected, onSelect }) {
+// 폴리곤·멀티폴리곤의 [[서, 남], [동, 북]]
+function bboxOf(geom) {
+  let w = 180, s = 90, e = -180, n = -90
+  const walk = (c) => { if (typeof c[0] === 'number') { w = Math.min(w, c[0]); e = Math.max(e, c[0]); s = Math.min(s, c[1]); n = Math.max(n, c[1]) } else c.forEach(walk) }
+  walk(geom.coordinates)
+  return [[w, s], [e, n]]
+}
+
+export default function MapView({ geo, regions, metric, breaks, selected, onSelect, focus }) {
   const box = useRef(null)
   const map = useRef(null)
   const hovered = useRef(null)
   const [tip, setTip] = useState(null)
   const latest = useRef({ metric })
-  latest.current = { metric, onSelect }
+  latest.current = { metric, onSelect, selected }
 
   // 지도 한 번 만들기 (배경 타일 없이 경계만 — 외부 키·요청 없음)
   useEffect(() => {
@@ -102,13 +110,32 @@ export default function MapView({ geo, regions, metric, breaks, selected, onSele
   const fc = useRef(null)
   useEffect(() => {
     fc.current = withValues(geo, regions, metric, breaks)
-    const apply = () => map.current?.getSource('sgg')?.setData(fc.current)
+    const apply = () => {
+      map.current?.getSource('sgg')?.setData(fc.current)
+      // 지도가 늦게 준비돼도 이미 고른 지역 테두리를 다시 그린다
+      for (const f of fc.current.features) map.current.setFeatureState({ source: 'sgg', id: f.id }, { selected: f.properties.code === latest.current.selected })
+    }
     if (map.current) apply()
     else {
       const t = setInterval(() => { if (map.current) { apply(); clearInterval(t) } }, 50)
       return () => clearInterval(t)
     }
   }, [geo, regions, metric, breaks])
+
+  // focus 지역으로 지도 이동 (랜덤 뽑기). '동작 줄이기' 설정이면 애니메이션 없이
+  useEffect(() => {
+    if (!focus) return
+    const go = () => {
+      const f = fc.current?.features.find((x) => x.properties.code === focus)
+      if (!f || !map.current) return false
+      const still = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+      map.current.fitBounds(bboxOf(f.geometry), { padding: 60, maxZoom: 9, duration: still ? 0 : 900 })
+      return true
+    }
+    if (go()) return
+    const t = setInterval(() => { if (go()) clearInterval(t) }, 100)
+    return () => clearInterval(t)
+  }, [focus])
 
   // 선택한 시군구 테두리
   useEffect(() => {

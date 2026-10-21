@@ -8,12 +8,14 @@
     GET /api/metrics            지도에 칠할 수 있는 지표 목록 (단위, 낮을수록 좋은지)
     GET /api/regions            시군구(leaf) 256곳 요약 — 지도 색칠용
     GET /api/regions/{code}     한 시군구 상세 (전월세·전기 추이, 공공요금 후보, 장바구니 분류, 외식비)
+    GET /api/random[?code=]      아무 시군구 하나 + 기본 답 기준 생활비 카드 ('아무 데나 살아보기')
     GET /api/sources            출처 표시 문구 (meta.data_source) — 화면 하단·푸터에 반드시 표시
 
 모든 값에는 *_gran(정밀도: exact/si/legacy/sido_part/sido)이 붙는다.
 'sido'·'sido_part'는 시군구 값이 없어 시도 평균으로 채운 것 → 화면에서 구분해 보여 줄 것.
 """
 import os
+import random
 from contextlib import contextmanager
 
 import psycopg2.extras
@@ -73,10 +75,10 @@ METRICS = [
     {"id": "mgmt_per_m2", "label": "아파트 ㎡당 관리비", "detail": "공용관리비+장기수선충당금 ÷ 관리비부과면적, 의무단지 중위값 (최근 12개월, K-apt)",
      "unit": "원/㎡·월", "field": "mgmt_per_m2", "gran": "mgmt_gran", "better": "low", "group": "에너지·관리비",
      "source": "kapt_fee", "sources": ["kapt_fee"]},
-    {"id": "edu_score", "label": "교육·육아 점수", "detail": "초등학교·중고등학교·유치원·학원을 인구 대비·개수로 전국과 비교 (0~100, 높을수록 넉넉)",
+    {"id": "edu_score", "label": "교육·육아 점수", "detail": "초등학교·중고등학교·유치원·학원을 인구 대비·면적 대비로 전국과 비교 (0~100, 높을수록 넉넉)",
      "unit": "점", "field": "edu_score", "gran": None, "better": "high", "group": "생활편의",
      "source": "neis_school", "sources": ["neis_school", "neis_academy", "kinder_info", "mois_population"]},
-    {"id": "culture_score", "label": "문화·여가 점수", "detail": "도서관·박물관·미술관·문예회관·공원을 인구 대비·개수로 전국과 비교 (0~100, 높을수록 넉넉)",
+    {"id": "culture_score", "label": "문화·여가 점수", "detail": "도서관·박물관·미술관·문예회관·공원을 인구 대비·면적 대비로 전국과 비교 (0~100, 높을수록 넉넉)",
      "unit": "점", "field": "culture_score", "gran": None, "better": "high", "group": "생활편의",
      "source": "culture_facility", "sources": ["culture_facility", "city_park", "mois_population"]},
     {"id": "library_per_100k", "label": "도서관 (인구 10만 명당)", "detail": "공공·국립도서관 수 ÷ 주민등록 인구 × 10만 (문화기반시설총람)",
@@ -227,6 +229,25 @@ def recommend(answers: dict):
     for x in results[:3]:   # 카드 문구(그림 유형·별명·설명·수준): 화면은 1위만 쓰지만 2·3위도 붙여 둔다
         x["card"] = describe.card(x, by_code.get(x["region_code"]))
     return {"answers": normalized, "count": len(results), "results": results, "assumptions": assumptions}
+
+
+@app.get("/api/random")
+def random_region(code: str | None = None):
+    """아무 시군구 하나 (code를 주면 그 지역): 기본 답(1인·월세·빌라) 기준 생활비·카드 + 요약 행.
+    화면의 '아무 데나 살아보기'가 쓴다. 생활비 순위는 전국 256곳 기준."""
+    with cursor() as cur:
+        rows = region_rows(cur)
+    results, normalized, _ = cost_model.recommend(rows, {})
+    by_code = {r["region_code"]: r for r in rows}
+    if code:
+        x = next((r for r in results if r["region_code"] == code), None)
+        if x is None:
+            raise HTTPException(404, f"시군구 코드 {code}가 없습니다")
+    else:
+        x = random.choice(results)
+    x["card"] = describe.card(x, by_code.get(x["region_code"]))
+    return {"result": x, "summary": by_code[x["region_code"]], "count": len(results),
+            "profile": "1인 가구 · 월세 · 빌라·원룸 · 기본 답 기준"}
 
 
 @app.get("/api/sources")

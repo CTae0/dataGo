@@ -7,6 +7,7 @@ import Questionnaire from './Questionnaire.jsx'
 import Results from './Results.jsx'
 import Home from './Home.jsx'
 import Logo from './Logo.jsx'
+import RandomPick from './RandomPick.jsx'
 import { quantileBreaks } from './format.js'
 import { apiJSON } from './api.js'
 
@@ -30,11 +31,15 @@ function writeAnswers(a) {
   history.replaceState(null, '', url)
 }
 // 첫 화면은 '/', 지도는 '?view=map'
-const startMode = () => (new URLSearchParams(location.search).get('view') === 'map' ? 'explore' : 'home')
-function writeView(mode) {
+// 랜덤 뽑기는 '?view=random&code=시군구코드' (공유하면 같은 지역이 열린다)
+const startMode = () => ({ map: 'explore', random: 'random' }[new URLSearchParams(location.search).get('view')] || 'home')
+function writeView(mode, code) {
   const url = new URL(location.href)
   if (mode === 'explore') url.searchParams.set('view', 'map')
+  else if (mode === 'random') url.searchParams.set('view', 'random')
   else url.searchParams.delete('view')
+  if (mode === 'random' && code) url.searchParams.set('code', code)
+  else url.searchParams.delete('code')
   history.replaceState(null, '', url)
 }
 
@@ -67,7 +72,13 @@ export default function App() {
   const [metricId, setMetricId] = useState('cost_s')
   const [selected, setSelected] = useState(null)
   const [mode, setModeRaw] = useState(startMode) // home | explore | quiz | results
-  const setMode = (m) => { setModeRaw(m); writeView(m) }
+  const setMode = (m) => { setModeRaw(m); if (m !== 'random') writeView(m) }
+  const [pick, setPick] = useState(null)           // /api/random 응답 (아무 데나 살아보기)
+  const pickRandom = (code) => {
+    apiJSON(`/api/random${code ? `?code=${encodeURIComponent(code)}` : ''}`)
+      .then((d) => { setPick(d); setSelected(d.result.region_code); setModeRaw('random'); writeView('random', d.result.region_code) })
+      .catch((e) => setError(String(e)))
+  }
   const [answers, setAnswers] = useState(readAnswers)
   const [rec, setRec] = useState(null)           // /api/recommend 응답
   const [error, setError] = useState(null)
@@ -94,6 +105,11 @@ export default function App() {
       .then((d) => { setRec(d); setMode('results') })
       .catch((e) => setError(String(e)))
   }, [answers])
+
+  // 주소가 ?view=random(&code=)이면 처음에 뽑아 둔다
+  useEffect(() => {
+    if (startMode() === 'random') pickRandom(new URLSearchParams(location.search).get('code') || undefined)
+  }, [])
 
   const inResults = mode === 'results' && rec && spec   // 질문 정의(spec)가 와야 결과 문구를 만들 수 있다
   const hideMap = isMobile && inResults && !mapOpen
@@ -126,6 +142,9 @@ export default function App() {
     <div className="app">
       <header className="topbar">
         <h1><button type="button" className="brand" onClick={goHome}><Logo size={28} /><span>어디 살까?</span></button></h1>
+        {(mode === 'explore' || mode === 'random') && (
+          <button type="button" className="secondary" onClick={() => pickRandom()}>🎲 아무 데나</button>
+        )}
         {mode === 'explore' && (
           <>
             <button type="button" className="primary" onClick={() => setMode('quiz')} disabled={!spec}>나한테 맞는 동네 찾기</button>
@@ -152,7 +171,7 @@ export default function App() {
       </header>
 
       {mode === 'home' && !inResults ? (
-        <Home spec={spec} error={error} onStart={() => setMode('quiz')} onMap={() => setMode('explore')} />
+        <Home spec={spec} error={error} onStart={() => setMode('quiz')} onMap={() => setMode('explore')} onRandom={() => pickRandom()} />
       ) : mode === 'quiz' && spec ? (
         <main className="body quiz-body">
           <Questionnaire spec={spec} initial={answers} onDone={finishQuiz} onCancel={() => setMode(rec ? 'results' : 'home')} />
@@ -165,7 +184,8 @@ export default function App() {
               {!error && (!geo || !regions) && <div className="loading">지도를 불러오는 중…</div>}
               {geo && mapRegions && metric && (
                 <MapView geo={geo} regions={mapRegions} metric={metric} breaks={breaks}
-                         selected={selected} onSelect={setSelected} />
+                         selected={selected} focus={mode === 'random' ? pick?.result.region_code : null}
+                         onSelect={mode === 'random' ? pickRandom : setSelected} />
               )}
               {metric && mapRegions && <Legend metric={metric} breaks={breaks} />}
             </section>
@@ -176,6 +196,14 @@ export default function App() {
               {selected && regions?.[selected] && (
                 <DetailPanel code={selected} summary={regions[selected]} metrics={metrics} sources={sources}
                              onClose={() => setSelected(null)} embedded />
+              )}
+            </aside>
+          ) : mode === 'random' && pick ? (
+            <aside className="panel wide">
+              <RandomPick data={pick} onAgain={() => pickRandom()} onQuiz={() => setMode('quiz')} />
+              {regions?.[pick.result.region_code] && (
+                <DetailPanel code={pick.result.region_code} summary={regions[pick.result.region_code]} metrics={metrics}
+                             sources={sources} onClose={() => setMode('explore')} embedded />
               )}
             </aside>
           ) : (

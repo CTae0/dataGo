@@ -102,7 +102,7 @@ export default function DetailPanel({ code, summary, metrics, sources, onClose, 
                   <tr><th>도시공원 (1인당 면적)</th><td>{Math.round(summary.parks)}곳 ({Math.round(summary.park_m2_per_person || 0)}㎡)</td></tr>
                 </tbody>
               </table>
-              <p className="muted small">점수는 인구 대비 비율과 개수를 전국과 비교한 백분위 평균 (0~100). 나이스·유치원알리미·문화기반시설총람(2023 기준)·도시공원 표준데이터</p>
+              <p className="muted small">점수는 인구 대비 비율과 면적(㎢) 대비 밀도를 전국과 비교한 백분위를 반반 섞은 값 (0~100). 나이스·유치원알리미·문화기반시설총람(2023 기준)·도시공원 표준데이터</p>
             </section>
           )}
 

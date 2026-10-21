@@ -77,6 +77,8 @@ SELECT r.region_code, r.sido_code, r.sido, r.sigungu, r.level, r.parent_code,
        am.population, am.elem, am.secondary, am.kinder, am.academy, am.library, am.museum, am.arts, am.cinema,
        am.parks, am.park_m2_per_person, am.library_per_100k, am.elem_per_1k_kids,
        sc.edu_score, sc.culture_score, sc.edu_stars, sc.culture_stars,
+       sc.elem_score, sc.secondary_score, sc.kinder_score, sc.academy_score,
+       sc.library_score, sc.museum_score, sc.arts_score, sc.park_score, sc.cinema_score,
        ARRAY(SELECT DISTINCT s FROM unnest(
            coalesce(util.util_sources, '{}')
            || CASE WHEN rent.region_code IS NOT NULL THEN ARRAY['molit_rent'] ELSE '{}' END

@@ -68,11 +68,21 @@ function Breakdown({ spec, items }) {
 export function starText(n) { return n ? '★'.repeat(n) + '☆'.repeat(4 - n) : '–' }
 function Stars({ x }) {
   const st = x.card?.stars
-  if (!st || (!st.edu && !st.culture)) return null
+  const picked = x.scores?.picked || []
+  if ((!st || (!st.edu && !st.culture)) && !picked.length) return null
   return (
-    <span className="pcard-stars" aria-label={`교육 ${st.edu || '-'}점, 문화 ${st.culture || '-'}점 (4점 만점)`}>
-      <span>교육 <b>{starText(st.edu)}</b></span><span>문화 <b>{starText(st.culture)}</b></span>
-    </span>
+    <>
+      {st && (st.edu || st.culture) && (
+        <span className="pcard-stars" aria-label={`교육 ${st.edu || '-'}점, 문화 ${st.culture || '-'}점 (4점 만점)`}>
+          <span>교육 <b>{starText(st.edu)}</b></span><span>문화 <b>{starText(st.culture)}</b></span>
+        </span>
+      )}
+      {picked.length > 0 && (   // 세부 질문에서 고른 시설: 0~100점 (전국 비교)
+        <span className="pcard-picked">
+          고른 편의 · {picked.map((p) => `${p.label} ${Math.round(p.score)}점${p.filled ? '*' : ''}`).join(' · ')}
+        </span>
+      )}
+    </>
   )
 }
 

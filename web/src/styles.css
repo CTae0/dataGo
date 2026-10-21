@@ -296,3 +296,19 @@ html, body, #root { height: 100%; margin: 0; }
 /* 생활편의 별점 */
 .pcard-stars { display: flex; flex-wrap: wrap; gap: 2px 12px; font-size: 12px; color: var(--text-secondary); }
 .pcard-stars b { color: #b97e00; font-weight: 600; letter-spacing: 1px; }
+
+/* 아무 데나 살아보기 */
+.random { display: grid; gap: 12px; }
+.random-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+.random-card { cursor: default; }
+@media (min-width: 900px) {
+  .random-card { flex-direction: row; }
+  .random-card .pcard-art { flex: 0 0 44%; aspect-ratio: 16 / 10; }
+}
+.random-grid { display: grid; gap: 8px; margin: 0; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+.random-grid div { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; background: var(--surface-1); }
+.random-grid dt { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+.random-grid dd { margin: 0; font-size: 13px; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.random-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.secondary.big { font-size: 15px; padding: 11px 18px; border-radius: 10px; }
+.pcard-picked { font-size: 12px; color: var(--text-secondary); }

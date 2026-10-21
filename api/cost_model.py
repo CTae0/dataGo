@@ -46,12 +46,23 @@ SUPPLY_RATIO = 1.3
 #          → 월 937km를 '자가용 출퇴근' 기준 거리로, 거리 문항이 배수(장거리 1.5 / 단거리 0.6)를 정한다.
 #          연비는 최신 공식 평균을 찾지 못해 휘발유 승용차 12km/ℓ로 둔다 — 가정.
 #          유가는 오피넷 시군구 보통휘발유 평균가 (mart.fuel_region gasoline_30d, 원/ℓ, 최근 30일 스냅샷 평균)
-# [생활편의 점수] mart.region_scores (sql/mart/85_amenities.sql): 교육·문화 0~100 (전국 백분위 기반)
-#   종합 점수 = (1 − w교육 − w문화) × 생활비 점수 + w교육 × 교육 점수 + w문화 × 문화 점수
-#   생활비 점수 = 전국 시군구 중 싼 순서를 0~100으로 (가장 싼 곳 100). 둘 다 '상관없음'이면 가중치 0 → 생활비 순서 그대로.
-#   가중치는 '생활비가 여전히 가장 큰 기준'이 되게 정한 값(교육 0.3, 문화 0.2) — 근거 통계가 아니라 설계 선택.
-W_EDU = 0.3
-W_CULTURE = 0.2
+# [생활편의 점수] mart.region_scores (sql/mart/85_amenities.sql): 시설 종류별 지표 점수 0~100 (전국 백분위 기반)
+#   세부 질문에서 A를 고른 시설만 가중치를 받는다.
+#   종합 점수 = (1 − Σw) × 생활비 점수 + Σ (w_i × 지표 점수_i)
+#   생활비 점수 = 전국 시군구 중 싼 순서를 0~100으로 (가장 싼 곳 100). 하나도 안 고르면 Σw = 0 → 생활비 순서 그대로.
+#   가중치는 '생활비가 여전히 가장 큰 기준'이 되게 정한 설계 값(근거 통계 아님). 다 고르면 합이 0.66이라
+#   MAX_AMENITY_WEIGHT(0.45)에 맞춰 같은 비율로 줄인다.
+INDICATORS = {   # 키: (요약 표 칸, 가중치, 화면 이름, 분야)
+    "kinder": ("kinder_score", 0.10, "유치원", "교육"),
+    "elem": ("elem_score", 0.10, "초등학교", "교육"),
+    "secondary": ("secondary_score", 0.08, "중·고등학교", "교육"),
+    "academy": ("academy_score", 0.10, "학원", "교육"),
+    "library": ("library_score", 0.07, "도서관", "문화"),
+    "museum": ("museum_score", 0.06, "박물관·미술관", "문화"),
+    "arts": ("arts_score", 0.06, "문예회관·문화센터", "문화"),
+    "park": ("park_score", 0.09, "공원", "생활"),
+}
+MAX_AMENITY_WEIGHT = 0.45
 CAR_KM_PER_DAY = 30.8
 CAR_KM_PER_MONTH = round(CAR_KM_PER_DAY * 365 / 12)   # 937km
 FUEL_KM_PER_L = 12.0
@@ -148,6 +159,43 @@ QUESTIONS = [
         {"id": "b", "label": "회사가 코앞, 동네 한 바퀴 수준", "hint": "자가용 평균의 0.6배 · 월 약 560km",
          "set": {"km_factor": 0.6}},
     ]},
+    # ── 생활편의 세부 질문: A를 고른 시설 지표만 순위에 반영 (INDICATORS) ──
+    {"id": "kid_age", "group": "편의", "title": "우리 집 아이는?", "show_if": {"living": "b", "family_size": "b"}, "options": [
+        {"id": "a", "label": "아직 유치원 갈 나이, 뽀로로가 최고", "hint": "미취학 (만 3~5세 안팎)", "set": {"kid": "preschool"}},
+        {"id": "b", "label": "학교 다니는 나이, 숙제 전쟁 중", "hint": "초·중·고 학생", "set": {"kid": "school"}},
+    ]},
+    {"id": "kinder", "group": "편의", "title": "유치원은?", "show_if": {**{"living": "b", "family_size": "b"}, "kid_age": "a"}, "options": [
+        {"id": "a", "label": "집 앞에 골라 보낼 만큼 넉넉해야", "hint": "유치원 많은 곳 우대", "set": {"amenity": {"kinder": True}}},
+        {"id": "b", "label": "한 곳만 있어도 OK, 차로 데려다줌", "hint": "순위에 반영 안 함", "set": {"amenity": {"kinder": False}}},
+    ]},
+    {"id": "elem", "group": "편의", "title": "초등학교는?", "show_if": {"living": "b", "family_size": "b"}, "options": [
+        {"id": "a", "label": "초품아 필수, 걸어서 등교", "hint": "초등학교 많은 곳 우대", "set": {"amenity": {"elem": True}}},
+        {"id": "b", "label": "스쿨버스 타고 가도 괜찮아", "hint": "순위에 반영 안 함", "set": {"amenity": {"elem": False}}},
+    ]},
+    {"id": "secondary", "group": "편의", "title": "중·고등학교는?", "show_if": {**{"living": "b", "family_size": "b"}, "kid_age": "b"}, "options": [
+        {"id": "a", "label": "학교 선택지가 많아야 마음이 편해", "hint": "중·고등학교 많은 곳 우대", "set": {"amenity": {"secondary": True}}},
+        {"id": "b", "label": "가까운 한 곳이면 충분", "hint": "순위에 반영 안 함", "set": {"amenity": {"secondary": False}}},
+    ]},
+    {"id": "academy", "group": "편의", "title": "학원은?", "show_if": {**{"living": "b", "family_size": "b"}, "kid_age": "b"}, "options": [
+        {"id": "a", "label": "학원가가 곧 경쟁력, 대치동 부럽지 않게", "hint": "학원·교습소 많은 곳 우대", "set": {"amenity": {"academy": True}}},
+        {"id": "b", "label": "인강과 문제집이면 충분", "hint": "순위에 반영 안 함", "set": {"amenity": {"academy": False}}},
+    ]},
+    {"id": "library", "group": "편의", "title": "책은?", "options": [
+        {"id": "a", "label": "도서관이 제2의 거실", "hint": "공공도서관 많은 곳 우대", "set": {"amenity": {"library": True}}},
+        {"id": "b", "label": "책보다 유튜브가 편해", "hint": "순위에 반영 안 함", "set": {"amenity": {"library": False}}},
+    ]},
+    {"id": "museum", "group": "편의", "title": "전시회는?", "options": [
+        {"id": "a", "label": "박물관·미술관 도장깨기가 취미", "hint": "박물관·미술관 많은 곳 우대", "set": {"amenity": {"museum": True}}},
+        {"id": "b", "label": "전시는 1년에 한 번이면 충분", "hint": "순위에 반영 안 함", "set": {"amenity": {"museum": False}}},
+    ]},
+    {"id": "arts", "group": "편의", "title": "취미·공연은?", "options": [
+        {"id": "a", "label": "문화센터 강좌에 공연 관람까지", "hint": "문예회관·생활문화센터 많은 곳 우대", "set": {"amenity": {"arts": True}}},
+        {"id": "b", "label": "취미는 집에서 혼자 조용히", "hint": "순위에 반영 안 함", "set": {"amenity": {"arts": False}}},
+    ]},
+    {"id": "park", "group": "편의", "title": "산책은?", "options": [
+        {"id": "a", "label": "저녁마다 공원 한 바퀴, 없으면 못 살아", "hint": "1인당 공원 면적 넓은 곳 우대", "set": {"amenity": {"park": True}}},
+        {"id": "b", "label": "걷는 건 출퇴근으로 충분", "hint": "순위에 반영 안 함", "set": {"amenity": {"park": False}}},
+    ]},
     {"id": "capital", "group": "어디서", "title": "서울과의 거리는?", "options": [
         {"id": "a", "label": "수도권 아니면 안 돼, 한강 뷰는 못 참지", "hint": "서울·경기·인천만", "set": {"where": {"capital": True}}},
         {"id": "b", "label": "서울은 가끔 놀러 가면 충분", "hint": "상관없음", "set": {}},
@@ -168,16 +216,6 @@ QUESTIONS = [
         {"id": "a", "label": "논밭과 산이 보이는 조용한 시골", "hint": "군 지역", "set": {"where": {"rural": True}}},
         {"id": "b", "label": "사람 사는 곳이면 어디든 OK", "hint": "상관없음", "set": {}},
     ]},
-    {"id": "school", "group": "어디서", "title": "아이 학교·학원은?", "show_if": {"family_size": "b"}, "options": [
-        {"id": "a", "label": "초품아에 학원가까지, 교육이 1순위", "hint": "학교·유치원·학원이 넉넉한 곳 우대 (교육 점수 30% 반영)",
-         "set": {"w_edu": W_EDU}},
-        {"id": "b", "label": "학교만 가까우면 충분해", "hint": "교육 점수는 순위에 반영 안 함", "set": {"w_edu": 0.0}},
-    ]},
-    {"id": "weekend", "group": "어디서", "title": "주말엔?", "options": [
-        {"id": "a", "label": "도서관·박물관·공원 출석 도장", "hint": "문화시설·공원이 넉넉한 곳 우대 (문화 점수 20% 반영)",
-         "set": {"w_culture": W_CULTURE}},
-        {"id": "b", "label": "이불 밖은 위험해, 집이 최고", "hint": "문화 점수는 순위에 반영 안 함", "set": {"w_culture": 0.0}},
-    ]},
     {"id": "mart", "group": "어디서", "title": "장 볼 때는?", "options": [
         {"id": "a", "label": "대형마트 카트를 끌어야 장 본 기분", "hint": "대형마트·SSM 조사 점포가 있는 시군구", "set": {"where": {"need_mart": True}}},
         {"id": "b", "label": "동네 슈퍼·시장이면 충분", "hint": "상관없음", "set": {}},
@@ -186,8 +224,9 @@ QUESTIONS = [
 DEFAULTS = {"living": "a", "family_size": "a", "tenure": "b", "house": "b", "shower": "b", "boiler": "b",
             "aircon": "b", "grocery": "b",
             "dining": "b", "trash": "b", "transit": "a", "capital": "b", "metro": "b", "sea": "b", "airport": "b",
-            "vibe": "b", "mart": "b", "drive": "b", "school": "b",
-            "weekend": "b"}
+            "vibe": "b", "mart": "b", "drive": "b",
+            "kid_age": "b", "kinder": "b", "elem": "b", "secondary": "b", "academy": "b",
+            "library": "b", "museum": "b", "arts": "b", "park": "b"}
 # 지역 조건 ↔ mart.region_features. 조건을 다 맞추는 곳이 MIN_RESULTS 미만이면 앞에서부터 하나씩 뺀다
 WHERE = [  # (키, 화면 이름, 지역이 조건을 맞추는지)
     ("need_mart", "대형마트", lambda r: (r.get("grocery_stores") or 0) > 0),
@@ -216,6 +255,15 @@ ITEM_GROUP = {"housing": "home", "mgmt": "energy", "electricity": "energy", "gas
 NOT_APPLICABLE = {"mgmt": lambda a: a["house"] != "apt", "fuel": lambda a: not a["car"]}
 
 
+def amenity_weights(a):
+    """세부 질문에서 A를 고른 시설 → 가중치. 합이 MAX_AMENITY_WEIGHT를 넘으면 같은 비율로 줄인다"""
+    w = {k: INDICATORS[k][1] for k, on in a["amenity"].items() if on and k in INDICATORS}
+    total = sum(w.values())
+    if total > MAX_AMENITY_WEIGHT:
+        w = {k: v * MAX_AMENITY_WEIGHT / total for k, v in w.items()}
+    return w
+
+
 def visible(q, ans):
     """앞 질문 답에 따라 이 질문을 보여 줄지 (show_if)"""
     return all(ans.get(k) == v for k, v in q.get("show_if", {}).items())
@@ -225,7 +273,7 @@ def normalize(answers):
     """답(질문 id → 'a'/'b') → 계산용 값. 잘못된 답은 ValueError"""
     raw = {**DEFAULTS, **{k: v for k, v in (answers or {}).items() if v is not None}}
     p = {"household": "solo", "tenure": "wolse", "house": "other", "shower": 1.0, "boiler": 1.0, "aircon": 1.0,
-         "grocery": 1.0, "car": False, "km_factor": 1.0, "w_edu": 0.0, "w_culture": 0.0,
+         "grocery": 1.0, "car": False, "km_factor": 1.0, "kid": None, "amenity": {},
          "meals": 12, "bags": 4, "trips": 44, "where": {}}
     for q in QUESTIONS:
         if not visible(q, raw):
@@ -236,6 +284,8 @@ def normalize(answers):
         for k, v in opt["set"].items():
             if k == "where":
                 p["where"].update(v)
+            elif k == "amenity":
+                p["amenity"].update(v)
             else:
                 p[k] = v
     return {"answers": {q["id"]: raw[q["id"]] for q in QUESTIONS if visible(q, raw)}, **p}
@@ -347,8 +397,10 @@ def recommend(regions, answers):
         x["national_rank"], x["national_pct"] = i, max(1, -(-i * 100 // n))   # 싼 순 상위 몇 %인지 (올림, 최소 1)
         x["_cost_score"] = 100.0 if n == 1 else 100.0 * (n - i) / (n - 1)
 
-    # 생활편의 점수: 결측은 같은 시도 중위값(없으면 전국 중위값)으로 채운다
-    for field in ("edu_score", "culture_score"):
+    # 생활편의 지표 점수: 결측은 같은 시도 중위값(없으면 전국 중위값)으로 채운다
+    weights = amenity_weights(a)
+    fields = [("edu_score", "edu"), ("culture_score", "culture")] + [(INDICATORS[k][0], k) for k in INDICATORS]
+    for field, _ in fields:
         pool_sido, pool_nat = {}, []
         for x in everyone:
             v = x["_row"].get(field)
@@ -362,17 +414,22 @@ def recommend(regions, answers):
                 pool = pool_sido.get(x["sido"]) or pool_nat
                 v = median(pool) if pool else 50.0
             x.setdefault("_scores", {})[field] = (float(v), filled)
-    we, wc = a["w_edu"], a["w_culture"]
+    wsum = sum(weights.values())
     for x in everyone:
-        edu, edu_f = x["_scores"]["edu_score"]
-        cul, cul_f = x["_scores"]["culture_score"]
+        sc = x["_scores"]
+        picked = [{"key": k, "label": INDICATORS[k][2], "weight": round(w, 3),
+                   "score": round(sc[INDICATORS[k][0]][0], 1), "filled": sc[INDICATORS[k][0]][1]}
+                  for k, w in weights.items()]
         x["scores"] = {
-            "cost": round(x["_cost_score"], 1), "edu": round(edu, 1), "culture": round(cul, 1),
-            "edu_filled": edu_f, "culture_filled": cul_f,
-            "total": round((1 - we - wc) * x["_cost_score"] + we * edu + wc * cul, 2),
+            "cost": round(x["_cost_score"], 1),
+            "edu": round(sc["edu_score"][0], 1), "culture": round(sc["culture_score"][0], 1),
+            "edu_filled": sc["edu_score"][1], "culture_filled": sc["culture_score"][1],
+            "picked": picked,
+            "total": round((1 - wsum) * x["_cost_score"]
+                           + sum(w * sc[INDICATORS[k][0]][0] for k, w in weights.items()), 2),
             "edu_stars": x["_row"].get("edu_stars"), "culture_stars": x["_row"].get("culture_stars"),
         }
-    if we or wc:   # 가중치가 있으면 종합 점수 순 (같으면 싼 곳 먼저). 없으면 위의 생활비 순서 그대로
+    if weights:   # 고른 시설이 있으면 종합 점수 순 (같으면 싼 곳 먼저). 없으면 위의 생활비 순서 그대로
         everyone.sort(key=lambda x: (-x["scores"]["total"], x["total"], x["region_code"]))
 
     wanted = [w for w in WHERE if a["where"].get(w[0])]
@@ -390,7 +447,7 @@ def recommend(regions, answers):
         "rate": RATE, "household": hh,
         "params": {k: a[k] for k in ("tenure", "house", "shower", "boiler", "aircon", "grocery", "meals", "bags",
                                      "trips", "car", "km_factor")},
-        "weights": {"cost": round(1 - a["w_edu"] - a["w_culture"], 2), "edu": a["w_edu"], "culture": a["w_culture"]},
+        "weights": {"cost": round(1 - wsum, 3), **{k: round(w, 3) for k, w in weights.items()}},
         "where": [label for key, label, _ in WHERE if a["where"].get(key) and label not in relaxed],
         "relaxed": relaxed,
         "notes": [
@@ -403,10 +460,9 @@ def recommend(regions, answers):
             "장보기는 가구원 수별 식료품비(국가데이터처 가계동향조사 2026년 1~2분기)에 지역 장바구니 지수를 곱한 값입니다 (대형마트·SSM 기준).",
             "물 사용량은 1인 하루 196.6ℓ(2024년 상수도 통계 가정용), 도시가스는 가구당 연 559.6㎥(한국가스공사 2022년)를 기준으로 했습니다. 가스의 가구원 수별 차이는 추정입니다.",
             "바다는 해안선이 3km 이상인 시군구, 공항은 가장 가까운 공항까지 직선 40km 이내(도로 약 1.3배, 차로 1시간 안팎), 광역시 생활권은 특별·광역시와 그와 맞닿은 시군구입니다.",
-            (f"순위는 생활비 점수 {round((1 - a['w_edu'] - a['w_culture']) * 100)}%"
-             + (f" + 교육 점수 {round(a['w_edu'] * 100)}%" if a["w_edu"] else "")
-             + (f" + 문화 점수 {round(a['w_culture'] * 100)}%" if a["w_culture"] else "")
-             + "로 매겼습니다. 교육 점수는 초등학교·중고등학교·유치원·학원(나이스·유치원알리미), 문화 점수는 도서관·박물관·미술관·문예회관·공원(문화기반시설총람·도시공원 표준데이터)을 인구 대비와 개수로 전국과 비교한 값입니다."),
+            ("순위는 생활비 점수 " + f"{round((1 - wsum) * 100)}%"
+             + "".join(f" + {INDICATORS[k][2]} {round(w * 100)}%" for k, w in weights.items())
+             + "로 매겼습니다. 시설 점수는 학교·학원(나이스), 유치원(유치원알리미), 도서관·박물관·미술관·문예회관(문화기반시설총람), 공원(도시공원 표준데이터)을 인구 대비 비율과 면적(㎢) 대비 밀도를 전국과 비교해 반반 섞은 0~100점입니다."),
             "모든 값은 추정치이며 실제와 다를 수 있습니다.",
         ],
     }

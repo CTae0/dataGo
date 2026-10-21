@@ -6,7 +6,7 @@ import { apiFetch } from './api.js'
 // 첫 화면: 퀴즈 먼저. 기본 답(1인·월세·빌라)으로 뽑은 1등 동네 예시 카드를 미리 보여 준다.
 const visible = (q, ans) => Object.entries(q.show_if || {}).every(([k, v]) => ans[k] === v)
 
-export default function Home({ spec, error, onStart, onMap }) {
+export default function Home({ spec, error, onStart, onMap, onRandom }) {
   const [sample, setSample] = useState(null)
   useEffect(() => {
     if (!spec) return
@@ -27,6 +27,7 @@ export default function Home({ spec, error, onStart, onMap }) {
           </p>
           <div className="hero-actions">
             <button type="button" className="primary big" onClick={onStart} disabled={!spec}>시작하기 →</button>
+            <button type="button" className="secondary big" onClick={onRandom}>🎲 아무 데나 살아보기</button>
             <button type="button" className="link big" onClick={onMap}>전국 지도로 둘러보기 ›</button>
           </div>
           {nq && <p className="muted small">질문 {nq}개 · 1분이면 끝나요 · 답은 저장하지 않아요</p>}

@@ -15,11 +15,11 @@ export default function Questionnaire({ spec, initial, onDone, onCancel }) {
   const q = qs[Math.min(step, qs.length - 1)]
   const last = step >= qs.length - 1
   // 묶음별 진행 ('나의 생활 3/11 · 어디서 0/6')
-  const groupName = { '생활': '나의 생활', '어디서': '어디서' }
+  const groupName = { '생활': '나의 생활', '편의': '생활편의', '어디서': '어디서' }
   const groupsDone = Object.keys(groupName).map((g) => {
     const inG = qs.filter((x) => x.group === g)
     return { g, total: inG.length, done: qs.slice(0, step + 1).filter((x) => x.group === g).length }
-  })
+  }).filter((x) => x.total > 0)
 
   const pick = (id) => {
     const next = { ...ans, [q.id]: id }
@@ -51,7 +51,7 @@ export default function Questionnaire({ spec, initial, onDone, onCancel }) {
         <span className="muted">{groupsDone.map((x) => `${groupName[x.g]} ${x.done}/${x.total}`).join(' · ')}</span>
       </div>
       <div className="progress" aria-hidden="true"><div style={{ width: `${((step + 1) / qs.length) * 100}%` }} /></div>
-      <div className="quiz-group">{q.group === '어디서' ? '어디서 살고 싶나요' : '나의 생활'}</div>
+      <div className="quiz-group">{{ '생활': '나의 생활', '편의': '생활편의 — 고른 시설만 순위에 반영돼요', '어디서': '어디서 살고 싶나요' }[q.group] || q.group}</div>
       <h2 className="quiz-title">{q.title}</h2>
 
       <div className="options ab" role="radiogroup" aria-label={q.title}>

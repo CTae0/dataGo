@@ -229,43 +229,65 @@ def test_fuel_not_applicable_for_bus_riders_and_filled_for_drivers():
     assert g["items"]["fuel"]["filled"] and g["items"]["fuel"]["value"] > 0
 
 
-# ── 생활편의 점수 섞기 (교육·문화) ────────────────────────────
+# ── 생활편의 세부 질문 (시설 지표별 가중치) ────────────────────
+EDU_KEYS = ("kinder", "elem", "secondary", "academy")
+
+
 def _scored(regions_scores):
-    return [{**r, "edu_score": e, "culture_score": c} for r, (e, c) in regions_scores]
+    """(지역, (교육 점수, 문화 점수)) → 지표 점수 칸 채우기 (교육 지표 = 교육 점수, 문화·공원 지표 = 문화 점수)"""
+    out = []
+    for r, (e, c) in regions_scores:
+        row = {**r, "edu_score": e, "culture_score": c}
+        for k, (field, _, _, area) in cm.INDICATORS.items():
+            row[field] = e if area == "교육" else c
+        out.append(row)
+    return out
 
 
-def test_zero_weights_keep_cost_order():
+def test_no_picks_keep_cost_order():
     regions = _scored([(CHUNCHEON, (90, 90)), (GANGNAM, (10, 10)), (YANGYANG, (50, 50))])
-    res, a, asm = cm.recommend(regions, SOLO)                       # 주말 b(기본) · 학교 질문 없음
-    assert a["w_edu"] == 0 and a["w_culture"] == 0
+    res, a, asm = cm.recommend(regions, SOLO)
+    assert cm.amenity_weights(a) == {} and asm["weights"] == {"cost": 1.0}
     assert [x["total"] for x in res] == sorted(x["total"] for x in res)
-    assert asm["weights"] == {"cost": 1.0, "edu": 0.0, "culture": 0.0}
 
 
-def test_culture_answer_lifts_high_culture_region():
-    # 춘천이 조금 비싸지만 문화 점수가 훨씬 높게 → 주말 A면 1위가 바뀐다
+def test_library_and_park_answers_lift_high_culture_region():
     cheap = {**CHUNCHEON, "region_code": "90001", "sigungu": "싼군", "cost_s": 30.0}
     rich = {**CHUNCHEON, "region_code": "90002", "sigungu": "문화시", "cost_s": 32.0}
     filler = [({**GANGNAM, "region_code": f"91{i:03d}", "sigungu": f"비싼구{i}"}, (50, 50)) for i in range(20)]
     regions = _scored([(cheap, (50, 5)), (rich, (50, 95))] + filler)   # 실제처럼 이웃 순위끼리 생활비 점수 차이가 작게
     base, _, _ = cm.recommend(regions, SOLO)
-    blend, _, asm = cm.recommend(regions, {**SOLO, "weekend": "a"})
+    blend, a, asm = cm.recommend(regions, {**SOLO, "library": "a", "park": "a"})
     assert base[0]["sigungu"] == "싼군" and blend[0]["sigungu"] == "문화시"
-    assert asm["weights"]["culture"] == cm.W_CULTURE
+    w = cm.amenity_weights(a)
+    assert set(w) == {"library", "park"} and asm["weights"]["library"] == cm.INDICATORS["library"][1]
     s = blend[0]["scores"]
-    assert s["total"] == pytest.approx((1 - cm.W_CULTURE) * s["cost"] + cm.W_CULTURE * s["culture"], abs=0.1)   # cost는 반올림 값
+    assert s["total"] == pytest.approx((1 - sum(w.values())) * s["cost"] + sum(w.values()) * 95, abs=0.1)
+    assert [p["key"] for p in s["picked"]] == ["library", "park"]
     assert blend[0]["national_rank"] == 2                              # 생활비 순위 배지는 그대로 생활비 기준
 
 
-def test_school_question_only_for_families():
-    assert "school" not in ans(**SOLO)["answers"] and "school" not in ans(**DUO)["answers"]
-    assert ans(**FAMILY, school="a")["w_edu"] == cm.W_EDU
-    assert ans(**SOLO, school="a")["w_edu"] == 0                       # 숨은 질문의 답은 무시
+def test_education_questions_only_for_families_and_by_kid_age():
+    for who in (SOLO, DUO):
+        assert not any(k in ans(**who)["answers"] for k in ("kid_age",) + EDU_KEYS)
+    assert cm.amenity_weights(ans(**SOLO, elem="a")) == {}              # 숨은 질문의 답은 무시
+    pre = ans(**FAMILY, kid_age="a")["answers"]
+    school = ans(**FAMILY, kid_age="b")["answers"]
+    assert "kinder" in pre and "secondary" not in pre and "academy" not in pre
+    assert "kinder" not in school and {"secondary", "academy", "elem"} <= set(school)
+    assert set(cm.amenity_weights(ans(**FAMILY, kid_age="b", elem="a", academy="a"))) == {"elem", "academy"}
+
+
+def test_all_picks_capped():
+    picks = {k: "a" for k in ("elem", "secondary", "academy", "library", "museum", "arts", "park")}
+    w = cm.amenity_weights(ans(**FAMILY, kid_age="b", **picks))
+    assert sum(w.values()) == pytest.approx(cm.MAX_AMENITY_WEIGHT)
 
 
 def test_missing_scores_filled_with_sido_median_and_flagged():
     regions = _scored([(CHUNCHEON, (80, 60)), (GANGNAM, (40, 40)), (YANGYANG, (None, None))])
-    res, _, _ = cm.recommend(regions, {**FAMILY, "school": "a", "weekend": "a"})
+    res, _, _ = cm.recommend(regions, {**FAMILY, "kid_age": "b", "elem": "a", "library": "a"})
     y = next(x for x in res if x["region_code"] == "51830")
-    assert y["scores"]["edu"] == 80 and y["scores"]["edu_filled"]       # 강원(춘천) 값으로 채움
-    assert y["scores"]["culture"] == 60 and y["scores"]["culture_filled"]
+    picked = {p["key"]: p for p in y["scores"]["picked"]}
+    assert picked["elem"]["score"] == 80 and picked["elem"]["filled"]   # 강원(춘천) 값으로 채움
+    assert picked["library"]["score"] == 60 and picked["library"]["filled"]

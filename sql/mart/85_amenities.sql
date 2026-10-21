@@ -9,9 +9,11 @@
 --    원천 주소 오타로 매핑 못 한 시설(약 15곳)은 빠진다 → dim.region_xwalk_unmatched.
 -- 2) mart.region_amenities: 분류별 개수, 인구 대비 비율
 --    아이 인구 = 0~19세(10세 단위 자료라 0~9 + 10~19), 유아 = 0~9세
--- 3) mart.region_scores: 분야 점수 0~100
---    지표마다 '인구 대비 비율'의 전국 백분위와 '개수'의 전국 백분위를 평균 낸다
---    (비율만 쓰면 인구 적은 군이, 개수만 쓰면 큰 도시가 늘 위라서 둘을 섞는다).
+-- 3) mart.region_scores: 시설 종류별 지표 점수와 분야 점수 0~100
+--    지표마다 '인구 대비 비율'의 전국 백분위와 '면적 대비 밀도(㎢당)'의 전국 백분위를 평균 낸다
+--    (인구 대비만 쓰면 인구 적은 군이, 면적 대비만 쓰면 촘촘한 도시가 늘 위라서 둘을 섞는다.
+--     면적 = 시군구 전체 면적(dim.region_geom.area_km2, 산지 포함) — 생활권 면적이 아니라는 한계가 있다).
+--    공원은 1인당 공원 면적(㎡)과 면적 대비 공원 비율(%)을 섞는다.
 --    교육 = 초등학교 · 중·고등학교 · 유치원 · 학원 지표 평균
 --    문화 = 도서관 · 박물관·미술관 · 문예회관·생활문화센터·문학관 · 공원 면적 (· 영화관: 자료가 있을 때만) 평균
 --    별점 1~4 = 점수 사분위
@@ -62,6 +64,7 @@ c AS (
     FROM mart.poi_region GROUP BY region_code
 )
 SELECT r.region_code, pop.stats_ym AS pop_ym, pop.total AS population, pop.kids0_9, pop.kids0_19,
+       g.area_km2,
        round(coalesce(c.elem, 0), 1) AS elem, round(coalesce(c.secondary, 0), 1) AS secondary,
        round(coalesce(c.kinder, 0), 1) AS kinder, round(coalesce(c.academy, 0), 1) AS academy,
        round(coalesce(c.library, 0), 1) AS library, round(coalesce(c.museum, 0), 1) AS museum,
@@ -76,8 +79,19 @@ SELECT r.region_code, pop.stats_ym AS pop_ym, pop.total AS population, pop.kids0
        round(coalesce(c.museum, 0) * 100000 / nullif(pop.total, 0), 2)       AS museum_per_100k,
        round(coalesce(c.arts, 0) * 100000 / nullif(pop.total, 0), 2)         AS arts_per_100k,
        round(coalesce(c.cinema, 0) * 100000 / nullif(pop.total, 0), 2)       AS cinema_per_100k,
-       round(coalesce(c.park_m2, 0) / nullif(pop.total, 0), 1)               AS park_m2_per_person
+       round(coalesce(c.park_m2, 0) / nullif(pop.total, 0), 1)               AS park_m2_per_person,
+       -- 면적 대비 (㎢당 개수, 공원은 면적 비율 %)
+       round(coalesce(c.elem, 0) / nullif(g.area_km2, 0), 3)                 AS elem_per_km2,
+       round(coalesce(c.secondary, 0) / nullif(g.area_km2, 0), 3)            AS secondary_per_km2,
+       round(coalesce(c.kinder, 0) / nullif(g.area_km2, 0), 3)               AS kinder_per_km2,
+       round(coalesce(c.academy, 0) / nullif(g.area_km2, 0), 3)              AS academy_per_km2,
+       round(coalesce(c.library, 0) / nullif(g.area_km2, 0), 4)              AS library_per_km2,
+       round(coalesce(c.museum, 0) / nullif(g.area_km2, 0), 4)               AS museum_per_km2,
+       round(coalesce(c.arts, 0) / nullif(g.area_km2, 0), 4)                 AS arts_per_km2,
+       round(coalesce(c.cinema, 0) / nullif(g.area_km2, 0), 4)               AS cinema_per_km2,
+       round(coalesce(c.park_m2, 0) / nullif(g.area_km2 * 1e6, 0) * 100, 3)  AS park_area_pct
 FROM dim.region r
+LEFT JOIN dim.region_geom g USING (region_code)
 LEFT JOIN pop USING (region_code)
 LEFT JOIN c USING (region_code)
 WHERE r.is_leaf;
@@ -86,22 +100,28 @@ ALTER TABLE mart.region_amenities ADD PRIMARY KEY (region_code);
 DROP TABLE IF EXISTS mart.region_scores;
 CREATE TABLE mart.region_scores AS
 WITH a AS (SELECT * FROM mart.region_amenities WHERE population > 0),
-p AS (   -- 지표 = (비율 백분위 + 개수 백분위) / 2, 0~100
+p AS (   -- 지표 = (인구 대비 백분위 + 면적 대비 백분위) / 2, 0~100
     SELECT region_code,
-           (percent_rank() OVER (ORDER BY elem_per_1k_kids) + percent_rank() OVER (ORDER BY elem)) * 50           AS i_elem,
-           (percent_rank() OVER (ORDER BY secondary_per_1k_kids) + percent_rank() OVER (ORDER BY secondary)) * 50 AS i_secondary,
-           (percent_rank() OVER (ORDER BY kinder_per_1k_kids) + percent_rank() OVER (ORDER BY kinder)) * 50       AS i_kinder,
-           (percent_rank() OVER (ORDER BY academy_per_1k_kids) + percent_rank() OVER (ORDER BY academy)) * 50    AS i_academy,
-           (percent_rank() OVER (ORDER BY library_per_100k) + percent_rank() OVER (ORDER BY library)) * 50        AS i_library,
-           (percent_rank() OVER (ORDER BY museum_per_100k) + percent_rank() OVER (ORDER BY museum)) * 50          AS i_museum,
-           (percent_rank() OVER (ORDER BY arts_per_100k) + percent_rank() OVER (ORDER BY arts)) * 50              AS i_arts,
-           (percent_rank() OVER (ORDER BY park_m2_per_person) + percent_rank() OVER (ORDER BY park_m2)) * 50      AS i_park,
+           (percent_rank() OVER (ORDER BY elem_per_1k_kids) + percent_rank() OVER (ORDER BY elem_per_km2)) * 50           AS i_elem,
+           (percent_rank() OVER (ORDER BY secondary_per_1k_kids) + percent_rank() OVER (ORDER BY secondary_per_km2)) * 50 AS i_secondary,
+           (percent_rank() OVER (ORDER BY kinder_per_1k_kids) + percent_rank() OVER (ORDER BY kinder_per_km2)) * 50       AS i_kinder,
+           (percent_rank() OVER (ORDER BY academy_per_1k_kids) + percent_rank() OVER (ORDER BY academy_per_km2)) * 50    AS i_academy,
+           (percent_rank() OVER (ORDER BY library_per_100k) + percent_rank() OVER (ORDER BY library_per_km2)) * 50        AS i_library,
+           (percent_rank() OVER (ORDER BY museum_per_100k) + percent_rank() OVER (ORDER BY museum_per_km2)) * 50          AS i_museum,
+           (percent_rank() OVER (ORDER BY arts_per_100k) + percent_rank() OVER (ORDER BY arts_per_km2)) * 50              AS i_arts,
+           (percent_rank() OVER (ORDER BY park_m2_per_person) + percent_rank() OVER (ORDER BY park_area_pct)) * 50        AS i_park,
            CASE WHEN (SELECT sum(cinema) FROM a) > 0
-                THEN (percent_rank() OVER (ORDER BY cinema_per_100k) + percent_rank() OVER (ORDER BY cinema)) * 50 END AS i_cinema
+                THEN (percent_rank() OVER (ORDER BY cinema_per_100k) + percent_rank() OVER (ORDER BY cinema_per_km2)) * 50 END AS i_cinema
     FROM a
 ),
 s AS (
     SELECT region_code,
+           -- 시설 종류별 지표 점수 (질문지 세부 질문이 하나씩 고른다: api/cost_model.py INDICATORS)
+           round(i_elem::numeric, 1) AS elem_score, round(i_secondary::numeric, 1) AS secondary_score,
+           round(i_kinder::numeric, 1) AS kinder_score, round(i_academy::numeric, 1) AS academy_score,
+           round(i_library::numeric, 1) AS library_score, round(i_museum::numeric, 1) AS museum_score,
+           round(i_arts::numeric, 1) AS arts_score, round(i_park::numeric, 1) AS park_score,
+           round(i_cinema::numeric, 1) AS cinema_score,
            round(((i_elem + i_secondary + i_kinder + i_academy) / 4)::numeric, 1) AS edu_score,
            round(((i_library + i_museum + i_arts + i_park + coalesce(i_cinema, 0))
                   / (4 + CASE WHEN i_cinema IS NULL THEN 0 ELSE 1 END))::numeric, 1) AS culture_score
