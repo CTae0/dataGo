@@ -11,6 +11,8 @@
   mois_public_fee_sigungu  2013·2016 시군구 값         예: '강원|춘천시'
   mois_dining     raw.mois_dining_price 시도 짧은 이름    예: '충남' → 충남 + 세종 (세종은 충남 값에 포함)
   good_price      raw.good_price_store 시도|시군 (모든 스냅샷)  예: '서울특별시|강남구', '서울|강남구'
+  opinet          raw.opinet_sigun_price 오피넷 시군코드    예: '0301'(강원 춘천시), '0201'(경기 수원시 → si), '1901'(세종시)
+  kepco_house     raw.kepco_house_power 시도명|시군구명    예: '광주광역시|북구', '경기도|화성시 동탄구', '인천광역시|서구'(legacy)
 국토부 전월세는 LAWD_CD = region_code라서 매핑이 필요 없다.
 """
 import re
@@ -151,6 +153,11 @@ def collect(cur):
     cur.execute("SELECT DISTINCT sido_nm, sigungu_nm FROM raw.good_price_store WHERE sido_nm IS NOT NULL")
     keys += [("good_price", f"{sd}|{sg or ''}", f"{sd} {sg or ''}".strip(), "sigungu", sd, sg or "")
              for sd, sg in cur.fetchall()]
+    cur.execute("SELECT DISTINCT ON (sigun_cd) sigun_cd, sido_nm, sigun_nm FROM raw.opinet_sigun_price "
+                "ORDER BY sigun_cd, snapshot DESC")
+    keys += [("opinet", cd, f"{sd} {sg}", "sigungu", sd, sg) for cd, sd, sg in cur.fetchall()]
+    cur.execute("SELECT DISTINCT metro_nm, city_nm FROM raw.kepco_house_power")
+    keys += [("kepco_house", f"{sd}|{sg}", f"{sd} {sg}", "sigungu", sd, sg) for sd, sg in cur.fetchall()]
     return keys
 
 

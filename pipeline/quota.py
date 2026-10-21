@@ -13,6 +13,8 @@ KST = timezone(timedelta(hours=9))
 LIMITS = {
     "molit_apt_rent": 10000, "molit_offi_rent": 10000, "molit_sh_rent": 10000, "molit_rh_rent": 10000,
     "kca_price": 2000,
+    "opinet": 300,       # 오피넷 일반 API (2026-09부터 300회/일)
+    "kepco": 10000,      # 한전 전력데이터개방포털 (한도 공개 안 됨, 넉넉히 둠)
 }
 RESERVE = 100   # 수동 확인용으로 남겨 두는 호출 수
 

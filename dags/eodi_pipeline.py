@@ -78,10 +78,28 @@ with DAG("eodi_dining_monthly", schedule="0 5 15 * *", start_date=START, catchup
     xwalk = bash("region_xwalk", "python -m pipeline.region_xwalk")
     [dining, good] >> xwalk
 
+# ── 한전 가구 전력 (월간) ──────────────────────────────────
+with DAG("eodi_power_monthly", schedule="0 6 20 * *", start_date=START, catchup=False, max_active_runs=1,
+         default_args=DEFAULTS, tags=["eodi", "utility", "power"],
+         doc_md="매월 20일: 한전 전력데이터개방포털 가구평균 전력사용량(시군구 × 월, 보통 2달 늦게 올라옴). "
+                "안 받은 달 + 최근 3개월 다시 확인 → 지역 매핑 갱신. 집계는 eodi_build_mart가 한다."):
+    power = bash("kepco_power", "python kepco_power.py", execution_timeout=pendulum.duration(hours=2))
+    xwalk = bash("region_xwalk", "python -m pipeline.region_xwalk")
+    power >> xwalk
+
+# ── 오피넷 유가 (매일) ─────────────────────────────────────
+with DAG("eodi_fuel_daily", schedule="30 10 * * *", start_date=START, catchup=False, max_active_runs=1,
+         default_args=DEFAULTS, tags=["eodi", "fuel"],
+         doc_md="매일 10:30 (오피넷 9시 갱신 뒤): 시군구별 주유소 평균가격 '현재' 값을 하루 스냅샷으로 쌓는다 "
+                "(호출 17번 남짓, 한도 300회/일). 새 시군코드가 생길 수 있어 지역 매핑도 갱신."):
+    fuel = bash("opinet_price", "python opinet_price.py", execution_timeout=pendulum.duration(minutes=20))
+    xwalk = bash("region_xwalk", "python -m pipeline.region_xwalk")
+    fuel >> xwalk
+
 # ── 지도용 집계 (매일 밤) ──────────────────────────────────
 with DAG("eodi_build_mart", schedule="30 23 * * *", start_date=START, catchup=False, max_active_runs=1,
          default_args=DEFAULTS, tags=["eodi", "mart"],
-         doc_md="매일 23:30: sql/mart/*.sql을 다시 만든다 (전월세·공공요금·장바구니·외식비 → 요약). "
+         doc_md="매일 23:30: sql/mart/*.sql을 다시 만든다 (전월세·공공요금·장바구니·외식비·전기·유가 → 요약). "
                 "외식비(mart.dining_region)는 API가 요약 표와 함께 읽는다."):
     rent = bash("rent", "python -m pipeline.run_sql sql/mart/10_rent.sql")
     utility = bash("utility", "python -m pipeline.run_sql sql/mart/20_utility.sql")
@@ -89,8 +107,10 @@ with DAG("eodi_build_mart", schedule="30 23 * * *", start_date=START, catchup=Fa
     dining = bash("dining", "python -m pipeline.run_sql sql/mart/40_dining.sql")
     # 바다·공항·광역시권·그림 유형 (경계는 연 1회 바뀌지만 2분 남짓이라 매일 다시 만든다)
     features = bash("region_features", "python -m pipeline.run_sql sql/mart/50_region_features.sql")
+    power = bash("power", "python -m pipeline.run_sql sql/mart/60_power.sql")
+    fuel = bash("fuel", "python -m pipeline.run_sql sql/mart/70_fuel.sql")
     summary = bash("region_summary", "python -m pipeline.run_sql sql/mart/90_region_summary.sql")
-    [rent, utility, grocery, dining, features] >> summary
+    [rent, utility, grocery, dining, features, power, fuel] >> summary
 
 # ── 지역 기준 (연간) ───────────────────────────────────────
 with DAG("eodi_dim_region_yearly", schedule="0 3 20 7 *", start_date=START, catchup=False, max_active_runs=1,
