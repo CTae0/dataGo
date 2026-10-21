@@ -73,12 +73,14 @@ SELECT r.region_code, r.sido_code, r.sido, r.sigungu, r.level, r.parent_code,
        rent_apt.jeonse_apt_s, rent_apt.cost_apt_s, rent_apt.deals_apt_s, rent_apt.jeonse_deals_apt_s, rent_apt.jeonse_apt_m, rent_apt.cost_apt_m, rent_apt.deals_apt_m, rent_apt.jeonse_deals_apt_m, rent_apt.jeonse_apt_l, rent_apt.cost_apt_l, rent_apt.deals_apt_l, rent_apt.jeonse_deals_apt_l,
        pw.power_kwh, pw.power_bill, pw.power_gran, pw.kwh_m01, pw.kwh_m02, pw.kwh_m03, pw.kwh_m04, pw.kwh_m05, pw.kwh_m06, pw.kwh_m07, pw.kwh_m08, pw.kwh_m09, pw.kwh_m10, pw.kwh_m11, pw.kwh_m12,
        mg.mgmt_per_m2, mg.mgmt_gran, mg.mgmt_complexes,
+       fu.gasoline_30d, fu.diesel_30d, fu.lpg_30d, fu.fuel_gran, fu.fuel_date,
        ARRAY(SELECT DISTINCT s FROM unnest(
            coalesce(util.util_sources, '{}')
            || CASE WHEN rent.region_code IS NOT NULL THEN ARRAY['molit_rent'] ELSE '{}' END
            || CASE WHEN groc.grocery_index IS NOT NULL THEN ARRAY['kca_price'] ELSE '{}' END
            || CASE WHEN pw.power_kwh IS NOT NULL THEN ARRAY['kepco_house_power'] ELSE '{}' END
-           || CASE WHEN mg.mgmt_per_m2 IS NOT NULL THEN ARRAY['kapt_fee'] ELSE '{}' END) AS s
+           || CASE WHEN mg.mgmt_per_m2 IS NOT NULL THEN ARRAY['kapt_fee'] ELSE '{}' END
+           || CASE WHEN fu.gasoline_30d IS NOT NULL THEN ARRAY['opinet_price'] ELSE '{}' END) AS s
              ORDER BY s) AS sources,
        now() AS built_at
 FROM dim.region r
@@ -88,5 +90,6 @@ LEFT JOIN groc USING (region_code)
 LEFT JOIN rent_apt USING (region_code)
 LEFT JOIN mart.power_region pw USING (region_code)   -- sql/mart/60_power.sql (전기)
 LEFT JOIN mart.mgmt_region mg USING (region_code)    -- sql/mart/80_mgmt.sql (아파트 관리비)
+LEFT JOIN mart.fuel_region fu USING (region_code)    -- sql/mart/70_fuel.sql (오피넷 유가, 원/L)
 WHERE r.is_leaf;
 ALTER TABLE mart.region_summary ADD PRIMARY KEY (region_code);

@@ -37,10 +37,10 @@ function writeView(mode) {
 }
 
 const EST_METRIC = {
-  id: 'est_total', label: '내 예상 월 생활비', detail: '답변으로 계산한 주거·관리비·전기·가스·물·외식·장보기·교통 합계 (조건 밖 지역은 회색)',
+  id: 'est_total', label: '내 예상 월 생활비', detail: '답변으로 계산한 주거·관리비·전기·가스·물·외식·장보기·교통·기름값 합계 (조건 밖 지역은 회색)',
   unit: '원/월', field: 'est_total', gran: null, better: 'low',
   sources: ['molit_rent', 'kapt_fee', 'kepco_house_power', 'std_water_sewage_fee', 'std_trash_bag_price',
-            'mois_public_fee', 'mois_dining', 'kca_price'],
+            'mois_public_fee', 'mois_dining', 'kca_price', 'opinet_price'],
 }
 
 export default function App() {

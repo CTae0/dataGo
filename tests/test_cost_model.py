@@ -62,11 +62,11 @@ def test_family_question_only_when_living_together():
 
 
 @pytest.mark.parametrize("qid,item", [("shower", "water"), ("boiler", "gas"), ("grocery", "grocery"), ("aircon", "electricity"),
-                                      ("dining", "dining"), ("trash", "trash"), ("transit", "transit")])
+                                      ("dining", "dining"), ("trash", "trash"), ("transit", "transit,fuel")])
 def test_each_lifestyle_question_moves_only_its_item(qid, item):
     a, b = cm.estimate(CHUNCHEON_FULL, ans(**{qid: "a"})), cm.estimate(CHUNCHEON_FULL, ans(**{qid: "b"}))
     for k in cm.ITEMS:
-        assert (a[k] != b[k]) == (k == item), (qid, k)
+        assert (a[k] != b[k]) == (k in item.split(",")), (qid, k)   # 출퇴근: 버스파 ↔ 자가용파 (버스·기름값)
 
 
 def test_missing_items_filled_with_sido_median_and_flagged():
@@ -157,6 +157,7 @@ def test_card_text_and_level():
 # ── 전기·관리비·집 유형 (2026-10-22) ──────────────────────────
 KWH = {f"kwh_m{m:02d}": (320.0 if m in (7, 8) else 240.0) for m in range(1, 13)}
 CHUNCHEON_FULL = {**CHUNCHEON, **KWH, "power_gran": "exact", "mgmt_per_m2": 1380.0, "mgmt_gran": "exact",
+                  "gasoline_30d": 1841.0, "fuel_gran": "exact",
                   "cost_apt_s": 55.0, "deals_apt_s": 120, "jeonse_apt_s": 9000.0, "jeonse_deals_apt_s": 50}
 
 
@@ -206,3 +207,23 @@ def test_electricity_calibrated_to_kepco_average_bill():
     avg_household = cm._electricity(r, {"elec": 1.0}, 1.0)
     assert avg_household == pytest.approx(r["power_bill"], abs=1)     # 평균 가구 = 한전 평균 청구액
     assert cm._electricity(r, {"elec": 1.36}, 1.5) > avg_household * 1.36   # 누진: 많이 쓰면 비례보다 더 비싸다
+
+
+def test_car_commute_adds_fuel_by_hand_and_drive_question_only_for_drivers():
+    assert cm.CAR_KM_PER_MONTH == 937                                 # 교통안전공단 2025 비사업용 30.8km/일
+    bus = cm.estimate(CHUNCHEON_FULL, ans(**SOLO, transit="a"))
+    assert bus["fuel"] == 0
+    assert "drive" not in ans(**SOLO, transit="a")["answers"]          # 버스파에겐 운전 거리를 묻지 않음
+    far = cm.estimate(CHUNCHEON_FULL, ans(**SOLO, transit="b", drive="a"))
+    near = cm.estimate(CHUNCHEON_FULL, ans(**SOLO, transit="b", drive="b"))
+    assert far["fuel"] == round(1841 * 937 * 1.5 / 12) and near["fuel"] == round(1841 * 937 * 0.6 / 12)
+    assert far["transit"] == near["transit"] == round(1291 * 2 * 1)     # 차로 다니면 버스는 월 2회
+
+
+def test_fuel_not_applicable_for_bus_riders_and_filled_for_drivers():
+    regions = [CHUNCHEON_FULL, {**GANGNAM, **KWH, "gasoline_30d": None}, YANGYANG]
+    res, _, _ = cm.recommend(regions, {**SOLO, "transit": "a"})
+    assert all(x["items"]["fuel"]["value"] == 0 and x["items"]["fuel"].get("na") for x in res)
+    res, _, _ = cm.recommend(regions, {**SOLO, "transit": "b"})
+    g = next(x for x in res if x["region_code"] == "11680")
+    assert g["items"]["fuel"]["filled"] and g["items"]["fuel"]["value"] > 0

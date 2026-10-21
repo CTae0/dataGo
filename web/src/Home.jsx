@@ -21,8 +21,8 @@ export default function Home({ spec, onStart, onMap }) {
           <p className="hero-kicker">전국 256개 시군구 · 공공데이터로 계산</p>
           <h2 className="hero-title">질문 몇 개면,<br />내 생활비로 살기 좋은 동네 3곳</h2>
           <p className="hero-sub">
-            샤워는 몇 분? 에어컨은 풀가동? 아파트 아니면 빌라? 재미있는 A/B 질문에 답하면
-            주거비·관리비·전기·가스·장보기·외식까지 합친 월 생활비로 동네를 골라 드려요.
+            샤워는 몇 분? 에어컨은 풀가동? 출근은 버스 아니면 내 차? 재미있는 A/B 질문에 답하면
+            주거비·관리비·전기·가스·장보기·외식·기름값까지 합친 월 생활비로 동네를 골라 드려요.
           </p>
           <div className="hero-actions">
             <button type="button" className="primary big" onClick={onStart} disabled={!spec}>시작하기 →</button>

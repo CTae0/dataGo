@@ -13,7 +13,7 @@ export const ITEM_COLOR = {
   housing: '#2a78d6',
   mgmt: '#b84a1f', electricity: '#eb6834', gas: '#f29a72', water: '#f7c3aa',
   dining: '#128a5f', grocery: '#5cc79e',
-  transit: '#b97e00', trash: '#f2c14e',
+  transit: '#b97e00', fuel: '#eda100', trash: '#f2c14e',
 }
 export const NA_COLOR = '#d9d8d3'
 

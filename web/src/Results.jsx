@@ -6,7 +6,7 @@ const MEDALS = ['🥇 1위', '🥈 2위', '🥉 3위']
 
 // 페르소나 한 줄: 몇몇 답의 앞부분
 function persona(spec, answers) {
-  const pick = ['house', 'shower', 'aircon', 'dining']
+  const pick = ['house', 'transit', 'shower', 'aircon', 'dining']
   return pick.map((qid) => {
     const label = spec.questions.find((q) => q.id === qid)?.options.find((o) => o.id === answers[qid])?.label
     return label ? label.split(',')[0] : null
@@ -112,7 +112,7 @@ export default function Results({ spec, data, onSelect, selected, onRestart }) {
   const top = data.results.slice(0, 3)
   const rest = data.results.slice(3)
   const asm = data.assumptions
-  const cols = spec.items.filter((it) => !(it.id === 'mgmt' && data.results[0]?.items.mgmt?.na))
+  const cols = spec.items.filter((it) => !data.results[0]?.items[it.id]?.na)   // 해당 없는 항목(관리비·기름값)은 표에서 뺀다
 
   return (
     <div className="results">

@@ -42,6 +42,13 @@ SUMMER = (7, 8)
 #          관리비부과면적은 대개 공급면적 → 면적대 대표 전용면적 × 1.3(전용→공급 환산, 가정)
 BAND_AREA = {"s": 33, "m": 50, "l": 75}   # 면적대(≤40, 40~60, 60~85㎡)의 대표 전용면적
 SUPPLY_RATIO = 1.3
+# [기름값] 한국교통안전공단 「2025년 자동차주행거리 통계」(2026-06 발표): 비사업용 자동차 1대당 일평균 30.8km
+#          → 월 937km를 '자가용 출퇴근' 기준 거리로, 거리 문항이 배수(장거리 1.5 / 단거리 0.6)를 정한다.
+#          연비는 최신 공식 평균을 찾지 못해 휘발유 승용차 12km/ℓ로 둔다 — 가정.
+#          유가는 오피넷 시군구 보통휘발유 평균가 (mart.fuel_region gasoline_30d, 원/ℓ, 최근 30일 스냅샷 평균)
+CAR_KM_PER_DAY = 30.8
+CAR_KM_PER_MONTH = round(CAR_KM_PER_DAY * 365 / 12)   # 937km
+FUEL_KM_PER_L = 12.0
 
 
 def _water_factor(persons):
@@ -126,8 +133,14 @@ QUESTIONS = [
         {"id": "b", "label": "한 장으로 한 달 버티는 미니멀리스트", "hint": "월 1~2장", "set": {"bags": 2}},
     ]},
     {"id": "transit", "group": "생활", "title": "출퇴근은?", "options": [
-        {"id": "a", "label": "버스 기사님과 인사하는 사이", "hint": "버스 월 40회 이상", "set": {"trips": 44}},
-        {"id": "b", "label": "두 발 또는 내 차가 최고", "hint": "버스는 거의 안 탐", "set": {"trips": 2}},
+        {"id": "a", "label": "버스 기사님과 인사하는 사이", "hint": "버스 월 40회 이상", "set": {"trips": 44, "car": False}},
+        {"id": "b", "label": "내 차와 한 몸, 운전대가 곧 출근 도장", "hint": "자가용 출퇴근 · 기름값 포함", "set": {"trips": 2, "car": True}},
+    ]},
+    {"id": "drive", "group": "생활", "title": "운전해서 가는 길은?", "show_if": {"transit": "b"}, "options": [
+        {"id": "a", "label": "고속도로 타는 장거리 출퇴근러", "hint": "자가용 평균의 1.5배 · 월 약 1,400km",
+         "set": {"km_factor": 1.5}},
+        {"id": "b", "label": "회사가 코앞, 동네 한 바퀴 수준", "hint": "자가용 평균의 0.6배 · 월 약 560km",
+         "set": {"km_factor": 0.6}},
     ]},
     {"id": "capital", "group": "어디서", "title": "서울과의 거리는?", "options": [
         {"id": "a", "label": "수도권 아니면 안 돼, 한강 뷰는 못 참지", "hint": "서울·경기·인천만", "set": {"where": {"capital": True}}},
@@ -157,7 +170,7 @@ QUESTIONS = [
 DEFAULTS = {"living": "a", "family_size": "a", "tenure": "b", "house": "b", "shower": "b", "boiler": "b",
             "aircon": "b", "grocery": "b",
             "dining": "b", "trash": "b", "transit": "a", "capital": "b", "metro": "b", "sea": "b", "airport": "b",
-            "vibe": "b", "mart": "b"}
+            "vibe": "b", "mart": "b", "drive": "b"}
 # 지역 조건 ↔ mart.region_features. 조건을 다 맞추는 곳이 MIN_RESULTS 미만이면 앞에서부터 하나씩 뺀다
 WHERE = [  # (키, 화면 이름, 지역이 조건을 맞추는지)
     ("need_mart", "대형마트", lambda r: (r.get("grocery_stores") or 0) > 0),
@@ -170,17 +183,20 @@ WHERE = [  # (키, 화면 이름, 지역이 조건을 맞추는지)
 MIN_RESULTS = 3
 AIRPORT_KM = 40   # 직선거리. 도로는 보통 1.3배 → 약 50km, 차로 1시간 안팎
 
-ITEMS = ["housing", "mgmt", "electricity", "gas", "water", "dining", "grocery", "transit", "trash"]
+ITEMS = ["housing", "mgmt", "electricity", "gas", "water", "dining", "grocery", "transit", "fuel", "trash"]
 ITEM_LABEL = {"housing": "주거", "mgmt": "관리비", "electricity": "전기", "gas": "도시가스", "water": "상하수도",
-              "dining": "외식", "grocery": "장보기", "transit": "버스", "trash": "쓰레기봉투"}
+              "dining": "외식", "grocery": "장보기", "transit": "버스", "fuel": "기름값", "trash": "쓰레기봉투"}
 ITEM_SOURCE = {"housing": "molit_rent", "mgmt": "kapt_fee", "electricity": "kepco_house_power",
                "gas": "mois_public_fee", "water": "std_water_sewage_fee", "dining": "mois_dining",
-               "grocery": "kca_price", "transit": "mois_public_fee", "trash": "std_trash_bag_price"}
+               "grocery": "kca_price", "transit": "mois_public_fee", "fuel": "opinet_price",
+               "trash": "std_trash_bag_price"}
 # 화면 묶음 (카드 막대·범례는 묶음 4색, 펼치면 항목별)
 GROUPS = [{"id": "home", "label": "주거"}, {"id": "energy", "label": "에너지·관리비"},
           {"id": "food", "label": "먹거리"}, {"id": "etc", "label": "교통·기타"}]
 ITEM_GROUP = {"housing": "home", "mgmt": "energy", "electricity": "energy", "gas": "energy", "water": "energy",
-              "dining": "food", "grocery": "food", "transit": "etc", "trash": "etc"}
+              "dining": "food", "grocery": "food", "transit": "etc", "fuel": "etc", "trash": "etc"}
+# 답에 따라 '해당 없음'인 항목 (0원, 시도 중위값으로 채우지 않음)
+NOT_APPLICABLE = {"mgmt": lambda a: a["house"] != "apt", "fuel": lambda a: not a["car"]}
 
 
 def visible(q, ans):
@@ -192,7 +208,7 @@ def normalize(answers):
     """답(질문 id → 'a'/'b') → 계산용 값. 잘못된 답은 ValueError"""
     raw = {**DEFAULTS, **{k: v for k, v in (answers or {}).items() if v is not None}}
     p = {"household": "solo", "tenure": "wolse", "house": "other", "shower": 1.0, "boiler": 1.0, "aircon": 1.0,
-         "grocery": 1.0,
+         "grocery": 1.0, "car": False, "km_factor": 1.0,
          "meals": 12, "bags": 4, "trips": 44, "where": {}}
     for q in QUESTIONS:
         if not visible(q, raw):
@@ -254,6 +270,8 @@ def estimate(r, answers):
         "mgmt": ((r["mgmt_per_m2"] * hh["mgmt_m2"] if r.get("mgmt_per_m2") else None)
                  if a["house"] == "apt" else 0),
         "electricity": _electricity(r, hh, a["aircon"]),
+        "fuel": ((r["gasoline_30d"] * CAR_KM_PER_MONTH * a["km_factor"] / FUEL_KM_PER_L
+                  if r.get("gasoline_30d") else None) if a["car"] else 0),
         "water": r["water_sewer"] * hh["water"] * a["shower"] if r.get("water_sewer") else None,
         "gas": r["gas_total"] * hh["gas_units"] * a["boiler"] if r.get("gas_total") else None,
         "trash": r["trash_20l"] * a["bags"] * hh["trash"] if r.get("trash_20l") else None,
@@ -265,16 +283,17 @@ def estimate(r, answers):
     return {k: (round(v) if v is not None else None) for k, v in out.items()}
 
 
-GRAN_FIELD = {"housing": None, "mgmt": "mgmt_gran", "electricity": "power_gran", "water": "water_sewer_gran",
+GRAN_FIELD = {"housing": None, "mgmt": "mgmt_gran", "electricity": "power_gran", "fuel": "fuel_gran",
+              "water": "water_sewer_gran",
               "gas": None, "trash": "trash_gran", "transit": None, "dining": "dining_gran", "grocery": "grocery_gran"}
 SIDO_LEVEL = {"gas", "transit"}   # 원천 자체가 시도 평균
 
 
-def _items(r, e, by_sido, nat, house="other"):
+def _items(r, e, by_sido, nat, a):
     items = {}
     for k in ITEMS:
         v, filled = e[k], False
-        if k == "mgmt" and house != "apt":   # 빌라·원룸파: 관리비 해당 없음 (0원, 채우지 않음)
+        if k in NOT_APPLICABLE and NOT_APPLICABLE[k](a):   # 빌라파의 관리비, 버스파의 기름값
             items[k] = {"label": ITEM_LABEL[k], "value": 0, "filled": False, "gran": None,
                         "source": ITEM_SOURCE[k], "group": ITEM_GROUP[k], "na": True}
             continue
@@ -297,12 +316,12 @@ def recommend(regions, answers):
     by_sido, nat = {}, {}
     for r in regions:
         for k, v in est[r["region_code"]].items():
-            if v is not None and not (k == "mgmt" and a["house"] != "apt"):
+            if v is not None and not (k in NOT_APPLICABLE and NOT_APPLICABLE[k](a)):
                 by_sido.setdefault((r["sido"], k), []).append(v)
                 nat.setdefault(k, []).append(v)
     everyone = []
     for r in regions:
-        items = _items(r, est[r["region_code"]], by_sido, nat, a["house"])
+        items = _items(r, est[r["region_code"]], by_sido, nat, a)
         everyone.append({"region_code": r["region_code"], "sido": r["sido"], "sigungu": r["sigungu"],
                          "total": sum(i["value"] for i in items.values()), "items": items, "_row": r})
     everyone.sort(key=lambda x: (x["total"], x["region_code"]))
@@ -324,12 +343,13 @@ def recommend(regions, answers):
     assumptions = {
         "rate": RATE, "household": hh,
         "params": {k: a[k] for k in ("tenure", "house", "shower", "boiler", "aircon", "grocery", "meals", "bags",
-                                     "trips")},
+                                     "trips", "car", "km_factor")},
         "where": [label for key, label, _ in WHERE if a["where"].get(key) and label not in relaxed],
         "relaxed": relaxed,
         "notes": [
             "주거비는 최근 12개월 실거래 중위값이고, 전세는 보증금 이자(연 5.5%)로 환산했습니다. 아파트파는 아파트 거래만 보고, 아파트 거래가 적은 곳은 전체 유형 값을 씁니다.",
             "관리비(아파트파만)는 K-apt 관리비 공개 의무단지의 ㎡당 공용관리비+장기수선충당금 시군구 중위값에 공급면적(면적대 대표 전용면적 × 1.3, 가정)을 곱했습니다. 전기·수도·가스 같은 개별사용료는 다른 항목에 따로 있어 뺐습니다.",
+            f"기름값(자가용 출퇴근파만)은 자가용 하루 평균 {CAR_KM_PER_DAY}km(한국교통안전공단 2025년 자동차주행거리 통계, 월 약 {CAR_KM_PER_MONTH:,}km)에 거리 답 배수를 곱하고, 연비 {FUEL_KM_PER_L:g}km/ℓ(가정)와 오피넷 시군구 보통휘발유 평균가로 계산했습니다. 주차비·보험·통행료는 빠져 있습니다.",
             "전기는 한전 시군구 가구 평균 월별 사용량(최근 12개월)에 가구원 수 배율(가정)과 여름 에어컨 답을 반영해, 달마다 주택용 누진 요금표(2024-07-01)로 계산하고, 지역의 한전 실제 평균 청구액에 맞춰 보정한 값입니다 (아파트 단일계약·복지할인 반영).",
             "상하수도는 기본요금이 빠져 있어 실제보다 조금 낮습니다.",
             "도시가스·버스는 시도 평균 요금, 외식비는 시도 평균 가격입니다. 가구원 수에 따른 외식비 배수는 가계동향조사 음식·숙박 지출 비율(1인 대비 2인 1.28배, 4인 2.43배)을 썼습니다.",
