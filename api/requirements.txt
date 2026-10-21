@@ -1,5 +1,4 @@
+# API 컨테이너 패키지 (api/Dockerfile). 로컬 개발 버전과 맞춘다
 fastapi==0.142.4
 uvicorn==0.54.0
-psycopg2-binary
-requests
-pytest==9.1.1
+psycopg2-binary==2.9.13

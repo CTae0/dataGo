@@ -128,5 +128,39 @@ services:
       interval: 5s
       retries: 10
 
+  # ── 공개용 API (FastAPI, 조회 전용) ─────────────────────────
+  # 빌드: api/Dockerfile (api/ 폴더만 들어감). DB에는 컨테이너 네트워크(db:5432)로 붙는다.
+  # PC 안에서 확인용으로만 127.0.0.1:8001에 연다 (개발 서버 8000과 겹치지 않게). 바깥은 아래 tunnel로만 연결.
+  api:
+    build: ./api
+    container_name: eodi-api
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: ${POSTGRES_DB:-eodi}
+      POSTGRES_USER: ${POSTGRES_USER:-eodi}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-eodi_local}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-https://wherelive-phi.vercel.app,http://localhost:5173,http://localhost:4173}
+    ports:
+      - "127.0.0.1:8001:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ── 외부 주소 (ngrok 터널 → api:8000) ───────────────────────
+  # 토큰은 .env의 NGROK_AUTHTOKEN (커밋하지 않음). 도메인은 비밀이 아니라 기본값으로 둔다.
+  # 화면(Vercel)의 web/.env.production VITE_API_BASE와 같은 주소여야 한다.
+  tunnel:
+    image: ngrok/ngrok:latest
+    container_name: eodi-tunnel
+    command: ["http", "api:8000", "--url", "${NGROK_DOMAIN:-headset-fretted-pang.ngrok-free.dev}", "--log", "stdout"]
+    environment:
+      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN}
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   pgdata:

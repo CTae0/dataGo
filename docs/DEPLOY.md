@@ -1,4 +1,26 @@
-# 공개 배포 계획 — 내 PC를 임시 서버로 (Docker + 터널) + Vercel 화면
+# 공개 배포 — 내 PC를 임시 서버로 (Docker + ngrok) + Vercel 화면
+
+## 지금 상태 (2026-10-22 적용)
+- 화면: https://wherelive-phi.vercel.app (Vercel, Root Directory `web`, `web/.env.production`의 `VITE_API_BASE`)
+- API: https://headset-fretted-pang.ngrok-free.dev → Docker `tunnel`(ngrok) → `api`(FastAPI) → `db`
+- 두 컨테이너는 `restart: unless-stopped` → Docker Desktop이 켜지면 같이 켜진다. PC가 꺼지거나 잠들면 사이트 데이터가 멈추고 '서버가 쉬는 중' 안내가 나온다.
+
+```bash
+docker compose up -d --build api tunnel   # 켜기 (API 코드를 바꿨으면 --build로 다시 만든다)
+docker compose stop tunnel                # 바깥 연결만 끄기
+docker compose logs -f tunnel             # 터널 상태 (토큰은 찍히지 않음)
+curl http://127.0.0.1:8001/api/health      # PC 안에서 API 확인
+```
+
+- 토큰: `.env`의 `NGROK_AUTHTOKEN` (커밋하지 않음). 도메인은 `NGROK_DOMAIN`(기본값 headset-fretted-pang.ngrok-free.dev).
+- 무료 계정은 터널을 하나만 띄울 수 있다 → PC에서 따로 `ngrok`을 실행하지 말 것 (같은 도메인 충돌).
+- 개발할 때는 지금처럼 `uvicorn --reload`(8000) + `npm run dev`(5173)를 쓴다. 공개 API(컨테이너, 8001)와 따로 돈다.
+- 아직 하지 않은 것 (요청 시): 읽기 전용 DB 계정, 요청 수 제한, 응답 캐시.
+
+---
+
+아래는 처음 세운 계획이에요 (참고용).
+
 
 작성 2026-10-22. 아직 실행 전이에요. 나중에 클라우드로 옮길 때의 계획은 맨 아래에 짧게 남겨 뒀어요.
 

@@ -20,7 +20,7 @@ import psycopg2.extras
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-import molit_rent as common
+from api import db as common   # load_env / connect (API 전용, api/db.py)
 from api import cost_model, describe
 
 common.load_env()
