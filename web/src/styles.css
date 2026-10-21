@@ -94,5 +94,7 @@ html, body, #root { height: 100%; margin: 0; }
   .body { flex-direction: column; }
   .map-wrap { min-height: 55vh; }
   .panel { width: 100%; border-left: none; border-top: 1px solid var(--border); }
-  .legend { max-width: 200px; }
+  .legend { max-width: 170px; padding: 6px 8px; font-size: 11px; left: 8px; bottom: 8px; }
+  .legend-title { font-size: 12px; }
+  .legend-note { display: none; }
 }

@@ -24,29 +24,32 @@ common.load_env()
 app = FastAPI(title="어디 살까? API", version="0.1.0")
 
 # 지표 목록. field는 /api/regions 응답의 키, gran은 정밀도 키, better는 'low'(낮을수록 좋음)
+# sources: 이 지표를 칠할 때 화면에 표시할 출처 (시도 평균 대체에 쓰는 원천 포함)
 METRICS = [
     {"id": "cost_s", "label": "1인 가구 월 주거비", "detail": "≤40㎡, 전·월세 환산 월세 중위값(최근 12개월)",
-     "unit": "만원/월", "field": "cost_s", "gran": None, "better": "low", "group": "주거비", "source": "molit_rent"},
+     "unit": "만원/월", "field": "cost_s", "gran": None, "better": "low", "group": "주거비", "source": "molit_rent", "sources": ["molit_rent"]},
     {"id": "cost_m", "label": "2인 가구 월 주거비", "detail": "40~60㎡, 환산 월세 중위값(최근 12개월)",
-     "unit": "만원/월", "field": "cost_m", "gran": None, "better": "low", "group": "주거비", "source": "molit_rent"},
+     "unit": "만원/월", "field": "cost_m", "gran": None, "better": "low", "group": "주거비", "source": "molit_rent", "sources": ["molit_rent"]},
     {"id": "cost_l", "label": "가족 가구 월 주거비", "detail": "60~85㎡, 환산 월세 중위값(최근 12개월)",
-     "unit": "만원/월", "field": "cost_l", "gran": None, "better": "low", "group": "주거비", "source": "molit_rent"},
+     "unit": "만원/월", "field": "cost_l", "gran": None, "better": "low", "group": "주거비", "source": "molit_rent", "sources": ["molit_rent"]},
     {"id": "jeonse_s", "label": "1인 가구 전세 보증금", "detail": "≤40㎡, 전세 보증금 중위값(최근 12개월)",
-     "unit": "만원", "field": "jeonse_s", "gran": None, "better": "low", "group": "주거비", "source": "molit_rent"},
+     "unit": "만원", "field": "jeonse_s", "gran": None, "better": "low", "group": "주거비", "source": "molit_rent", "sources": ["molit_rent"]},
     {"id": "jeonse_l", "label": "가족 가구 전세 보증금", "detail": "60~85㎡, 전세 보증금 중위값(최근 12개월)",
-     "unit": "만원", "field": "jeonse_l", "gran": None, "better": "low", "group": "주거비", "source": "molit_rent"},
+     "unit": "만원", "field": "jeonse_l", "gran": None, "better": "low", "group": "주거비", "source": "molit_rent", "sources": ["molit_rent"]},
     {"id": "water_sewer", "label": "상하수도 요금", "detail": "가정용 20㎥ 사용 기준 월 요금(기본요금 제외)",
      "unit": "원/월", "field": "water_sewer", "gran": "water_sewer_gran", "better": "low", "group": "공공요금",
-     "source": "std_water_sewage_fee"},
+     "source": "std_water_sewage_fee",
+     "sources": ["std_water_sewage_fee", "mois_public_fee"]},
     {"id": "trash_20l", "label": "종량제봉투 20ℓ", "detail": "가정용 생활쓰레기 규격봉투",
      "unit": "원", "field": "trash_20l", "gran": "trash_gran", "better": "low", "group": "공공요금",
-     "source": "std_trash_bag_price"},
+     "source": "std_trash_bag_price",
+     "sources": ["std_trash_bag_price", "mois_public_fee"]},
     {"id": "grocery_index", "label": "장바구니 물가", "detail": "대형마트·SSM 상품 가격 지수 (전국 중위 = 100)",
      "unit": "지수", "field": "grocery_index", "gran": "grocery_gran", "better": "low", "group": "장바구니",
-     "source": "kca_price"},
+     "source": "kca_price", "sources": ["kca_price"]},
     {"id": "meal_index", "label": "외식비", "detail": "외식 8개 품목 평균 가격 지수 (시도 단위)",
      "unit": "지수", "field": "meal_index", "gran": "dining_gran", "better": "low", "group": "외식비",
-     "source": "mois_dining"},
+     "source": "mois_dining", "sources": ["mois_dining"]},
 ]
 GRAN_RANK = {"exact": 0, "si": 1, "legacy": 2, "sido_part": 3, "sido": 4}
 

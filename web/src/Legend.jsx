@@ -1,19 +1,19 @@
-import { RAMP, NO_DATA, formatValue } from './format.js'
+import { RAMP, NO_DATA, formatShort, UNIT_TITLE } from './format.js'
 
 export default function Legend({ metric, breaks }) {
   const edges = [null, ...breaks, null]
+  const label = (i) => {
+    const lo = edges[i], hi = edges[i + 1]
+    if (lo === null) return `${formatShort(hi, metric.unit)} 이하`
+    if (hi === null) return `${formatShort(lo, metric.unit)} 초과`
+    return `${formatShort(lo, metric.unit)} ~ ${formatShort(hi, metric.unit)}`
+  }
   return (
     <div className="legend" aria-label="범례">
-      <div className="legend-title">{metric.label}</div>
+      <div className="legend-title">{metric.label} <span className="muted">({UNIT_TITLE[metric.unit] || metric.unit})</span></div>
       <ul>
         {RAMP.map((c, i) => (
-          <li key={c}>
-            <span className="swatch" style={{ background: c }} />
-            <span>
-              {edges[i] === null ? '~ ' : `${formatValue(edges[i], metric.unit)} ~ `}
-              {edges[i + 1] === null ? '' : formatValue(edges[i + 1], metric.unit)}
-            </span>
-          </li>
+          <li key={c}><span className="swatch" style={{ background: c }} /><span>{label(i)}</span></li>
         ))}
         <li><span className="swatch" style={{ background: NO_DATA }} /><span>자료 없음</span></li>
         {metric.gran && <li><span className="swatch hatch" /><span>시도 평균으로 대체</span></li>}

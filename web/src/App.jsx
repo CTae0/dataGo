@@ -76,7 +76,7 @@ export default function App() {
         )}
       </main>
 
-      <Attribution sources={sources} active={metric ? [metric.source, 'vworld_sigungu'] : ['vworld_sigungu']} />
+      <Attribution sources={sources} active={[...(metric?.sources || (metric ? [metric.source] : [])), 'vworld_sigungu']} />
     </div>
   )
 }

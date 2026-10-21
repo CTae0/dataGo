@@ -32,6 +32,14 @@ export function formatValue(v, unit) {
   return `${nf1.format(v)} ${unit}`
 }
 
+// 범례용 짧은 숫자 (단위는 제목에 한 번만)
+export const UNIT_TITLE = { '만원/월': '만 원/월', '만원': '만 원', '원/월': '원/월', '원': '원', '지수': '전국 중위 = 100' }
+export function formatShort(v, unit) {
+  if (v === null || v === undefined || Number.isNaN(v)) return ''
+  if (unit === '만원/월' || unit === '지수') return nf1.format(v)
+  return nf0.format(v)
+}
+
 // 분위수 경계 (6구간). values는 null 제외
 export function quantileBreaks(values, k = RAMP.length) {
   const xs = values.filter((v) => v !== null && v !== undefined && !Number.isNaN(v)).sort((a, b) => a - b)

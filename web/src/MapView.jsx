@@ -56,6 +56,7 @@ export default function MapView({ geo, regions, metric, breaks, selected, onSele
       style: { version: 8, sources: {}, layers: [{ id: 'bg', type: 'background', paint: { 'background-color': '#f4f6f8' } }] },
       bounds: KOREA, fitBoundsOptions: { padding: 24 }, attributionControl: false, dragRotate: false,
     })
+    if (import.meta.env.DEV) window.__eodiMap = m   // 개발 중 디버깅용
     m.touchZoomRotate.disableRotation()
     m.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right')
     m.on('load', () => {

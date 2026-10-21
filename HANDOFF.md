@@ -254,7 +254,9 @@ docker compose exec db psql -U eodi -d eodi -f /sql/load_public_fee.sql
   **postgres:16(trixie)로 되돌리면 다시 REINDEX 필요**
 - `pipeline/boundary.py` → `dim.region_geom` (잘못된 도형 0, 총면적 100,204㎢). 웹용 단순화: `web`에서 `npm run boundaries` (mapshaper -clean, 1MB)
 - 조회 API `api/main.py` (FastAPI): /api/metrics, /api/regions, /api/regions/{code}, /api/sources — 동작 확인
-- 지도 `web/` (Vite 8 + React 19 + MapLibre 6): 데이터·범례·출처 표시는 뜨지만 **지도 캔버스에 아무것도 안 그려지는 문제 남음**
+- 지도 `web/` (Vite 8 + React 19 + MapLibre 6): **전국 단계구분도 동작 확인** (지표 전환, 시도 평균 사선 무늬, 툴팁, 클릭 상세, 출처)
+  - 빈 지도처럼 보였던 원인: Claude 앱의 브라우저 패널이 숨겨져 있으면 requestAnimationFrame이 안 돌아 MapLibre가 그리지 않음 (코드 문제 아님)
+  - MapLibre 6: default export 없음 → `import * as maplibregl`, worker는 `setWorkerUrl(…worker.mjs?url)` + `optimizeDeps.exclude`
   (worker는 setWorkerUrl + optimizeDeps.exclude로 로드됨, 새 콘솔 오류 없음). 다음: map 'load' 이벤트가 오는지, StrictMode 이중 마운트, style 확인
 - 실행: `.claude/launch.json`의 api(8000), web(5173)
 - 전월세 백필 1일차 끝(6,000회, 오늘 사용량 meta.api_usage에 반영). 남은 기간은 `eodi_rent_backfill` DAG를 켜면 이어받음
