@@ -8,6 +8,22 @@ maplibregl.setWorkerUrl(workerUrl)
 import { RAMP, NO_DATA, classOf, formatValue, isFallback, GRAN_LABEL } from './format.js'
 
 const KOREA = [[124.5, 33.0], [131.0, 38.7]]
+const MAX_ZOOM = 12   // 시군구 경계가 의미 있는 정도까지만 확대
+
+// 축소·이동 한계: 한반도 전체가 딱 보이는 줌보다 더 줄이지 못하고,
+// 그때 화면에 보이는 범위 밖으로는 끌고 나가지 못한다. 화면 크기가 바뀌면 다시 잰다.
+function limitToKorea(m) {
+  const cam = m.cameraForBounds(KOREA, { padding: 24 })
+  if (!cam) return
+  const prev = { center: m.getCenter(), zoom: m.getZoom() }
+  m.setMaxBounds(null)
+  m.setMinZoom(0)
+  m.jumpTo(cam)
+  const view = m.getBounds()
+  m.setMinZoom(cam.zoom)
+  m.setMaxBounds(view)
+  m.jumpTo({ center: prev.center, zoom: Math.max(prev.zoom, cam.zoom) })
+}
 
 // 시도 평균으로 채운 지역 위에 덮는 사선 무늬 (색만으로 구분하지 않기 위해)
 function hatchImage() {
@@ -64,11 +80,13 @@ export default function MapView({ geo, regions, metric, breaks, selected, onSele
       container: box.current,
       style: { version: 8, sources: {}, layers: [{ id: 'bg', type: 'background', paint: { 'background-color': '#f4f6f8' } }] },
       bounds: KOREA, fitBoundsOptions: { padding: 24 }, attributionControl: false, dragRotate: false,
+      maxZoom: MAX_ZOOM, renderWorldCopies: false,
     })
-    if (import.meta.env.DEV) window.__eodiMap = m   // 개발 중 디버깅용
     m.touchZoomRotate.disableRotation()
     m.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right')
+    m.on('resize', () => { if (map.current === m) limitToKorea(m) })
     m.on('load', () => {
+      limitToKorea(m)
       m.addImage('hatch', hatchImage(), { pixelRatio: 2 })
       m.addSource('sgg', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
       m.addLayer({ id: 'fill', type: 'fill', source: 'sgg', paint: {
@@ -84,6 +102,7 @@ export default function MapView({ geo, regions, metric, breaks, selected, onSele
                        ['boolean', ['feature-state', 'hover'], false], 1.5, 0],
       } })
       map.current = m
+      if (import.meta.env.DEV) window.__eodiMap = m   // 개발 중 디버깅용 (실제로 그려진 지도)
       m.fire('eodi:ready')
     })
     m.on('mousemove', 'fill', (e) => {
