@@ -94,7 +94,7 @@ export default function App() {
   const pickRandom = useCallback((code) => {
     apiJSON(`/api/random${code ? `?code=${encodeURIComponent(code)}` : ''}`)
       .then((d) => {
-        setPick(d); setSelected(d.result.region_code); setModeRaw('random'); writeView('random', d.result.region_code)
+        setPick(d); setMetricId((m) => (m === 'est_total' ? 'cost_s' : m)); setSelected(d.result.region_code); setModeRaw('random'); writeView('random', d.result.region_code)
         setSheet('half')
       })
       .catch((e) => setError(String(e)))
@@ -132,16 +132,17 @@ export default function App() {
   }, [pickRandom])
 
   const inResults = mode === 'results' && rec && spec   // 질문 정의(spec)가 와야 결과 문구를 만들 수 있다
-  // 지도 지표: 결과가 있으면 '내 예상 월 생활비'도 고를 수 있다. PC 결과 화면은 늘 그 지표
-  const mapMetrics = useMemo(() => (rec ? [EST_METRIC, ...metrics] : metrics), [rec, metrics])
+  // 설문 결과는 결과 화면에서만 쓴다. 지도·랜덤은 늘 초기 상태(기본 지표·기본 답)로 보여 준다
+  const quizMap = !!inResults
+  const mapMetrics = useMemo(() => (quizMap ? [EST_METRIC, ...metrics] : metrics), [quizMap, metrics])
   const metric = !isMobile && inResults ? EST_METRIC : (mapMetrics.find((m) => m.id === metricId) || mapMetrics[0])
 
   const mapRegions = useMemo(() => {
     if (!regions) return null
-    if (!rec) return regions
+    if (!rec || !quizMap) return regions
     const est = Object.fromEntries(rec.results.map((x) => [x.region_code, x.total]))
     return Object.fromEntries(Object.entries(regions).map(([k, r]) => [k, { ...r, est_total: est[k] ?? null }]))
-  }, [regions, rec])
+  }, [regions, rec, quizMap])
 
   const breaks = useMemo(() => {
     if (!mapRegions || !metric) return []
@@ -156,9 +157,10 @@ export default function App() {
 
   const finishQuiz = (a) => { writeAnswers(a); setSelected(null); setAnswers({ ...a }); setModeRaw('results'); writeView('results') }
   const changeSort = (v) => { const a = { ...(answers || {}), sort: v }; writeAnswers(a); setAnswers(a) }
-  const backToMap = () => { setMode('explore'); setSelected(null) }
+  const resetMap = () => { setSelected(null); setSheet(null); setMetricId('cost_s') }
+  const backToMap = () => { setMode('explore'); resetMap() }
   const goHome = () => { setMode('home'); setSelected(null); setSheet(null) }
-  const mineFor = (code) => rec?.results.find((x) => x.region_code === code)
+  const mineFor = (code) => (quizMap ? rec?.results.find((x) => x.region_code === code) : null)
 
   // 휴대폰 탭 이동
   const tabOf = { home: 'home', quiz: 'mine', results: 'mine', explore: 'map', random: 'random' }[mode]
@@ -166,7 +168,7 @@ export default function App() {
     window.scrollTo({ top: 0 })
     if (t === 'home') goHome()
     else if (t === 'mine') setMode(rec ? 'results' : 'quiz')
-    else if (t === 'map') { setMode('explore'); setSheet(selected ? 'peek' : null); if (rec && metricId === 'cost_s') setMetricId('est_total') }
+    else if (t === 'map') { setMode('explore'); resetMap() }
     else if (t === 'random') { if (pick && mode !== 'random') { setModeRaw('random'); writeView('random', pick.result.region_code); setSelected(pick.result.region_code); setSheet('half') } else pickRandom() }
   }
   const selectOnMap = (code) => {
@@ -288,11 +290,11 @@ export default function App() {
         )}
         {inResults && <button type="button" className="secondary" onClick={backToMap}>지표 지도로</button>}
         {metric && (mode === 'explore' || inResults) && <p className="metric-detail">{metric.detail}</p>}
-        {mode === 'home' && <button type="button" className="secondary topbar-right" onClick={() => setMode('explore')}>지도로 둘러보기</button>}
+        {mode === 'home' && <button type="button" className="secondary topbar-right" onClick={backToMap}>지도로 둘러보기</button>}
       </header>
 
       {mode === 'home' ? (
-        <Home spec={spec} error={error} onStart={() => setMode('quiz')} onMap={() => setMode('explore')} onRandom={() => pickRandom()} />
+        <Home spec={spec} error={error} onStart={() => setMode('quiz')} onMap={backToMap} onRandom={() => pickRandom()} />
       ) : mode === 'quiz' ? (
         <main className="body quiz-body">
           {spec ? <Questionnaire spec={spec} initial={answers} onDone={finishQuiz} onCancel={() => setMode(rec ? 'results' : 'home')} />
