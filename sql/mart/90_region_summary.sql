@@ -79,6 +79,11 @@ SELECT r.region_code, r.sido_code, r.sido, r.sigungu, r.level, r.parent_code,
        sc.edu_score, sc.culture_score, sc.edu_stars, sc.culture_stars,
        sc.elem_score, sc.secondary_score, sc.kinder_score, sc.academy_score,
        sc.library_score, sc.museum_score, sc.arts_score, sc.park_score, sc.cinema_score,
+       he.hospitals, he.hospitals_big, he.pharmacies, he.pediatrics, he.emergency_km, he.emergency_name,
+       he.crimes, he.crimes_per_1k, he.crime_year, he.crime_gran, he.pm25, he.pm25_hours, he.pm25_from, he.pm25_to,
+       he.pm25_gran, he.hospitals_per_10k, he.pharmacies_per_10k,
+       hs.hospital_score, hs.pediatric_score, hs.emergency_score, hs.safety_score, hs.air_score,
+       hs.medical_score, hs.env_score, hs.medical_stars, hs.safety_stars, hs.env_stars,
        ARRAY(SELECT DISTINCT s FROM unnest(
            coalesce(util.util_sources, '{}')
            || CASE WHEN rent.region_code IS NOT NULL THEN ARRAY['molit_rent'] ELSE '{}' END
@@ -88,7 +93,10 @@ SELECT r.region_code, r.sido_code, r.sido, r.sigungu, r.level, r.parent_code,
            || CASE WHEN fu.gasoline_30d IS NOT NULL THEN ARRAY['opinet_price'] ELSE '{}' END
            || CASE WHEN sc.edu_score IS NOT NULL
                    THEN ARRAY['neis_school', 'neis_academy', 'kinder_info', 'culture_facility', 'city_park', 'mois_population']
-                   ELSE '{}' END) AS s
+                   ELSE '{}' END
+           || CASE WHEN he.hospitals IS NOT NULL THEN ARRAY['nmc_hospital', 'nmc_pharmacy', 'nmc_emergency'] ELSE '{}' END
+           || CASE WHEN he.crimes IS NOT NULL THEN ARRAY['police_crime'] ELSE '{}' END
+           || CASE WHEN he.pm25 IS NOT NULL THEN ARRAY['airkorea_stats'] ELSE '{}' END) AS s
              ORDER BY s) AS sources,
        now() AS built_at
 FROM dim.region r
@@ -101,5 +109,7 @@ LEFT JOIN mart.mgmt_region mg USING (region_code)    -- sql/mart/80_mgmt.sql (�
 LEFT JOIN mart.fuel_region fu USING (region_code)    -- sql/mart/70_fuel.sql (오피넷 유가, 원/L)
 LEFT JOIN mart.region_amenities am USING (region_code) -- sql/mart/85_amenities.sql (교육·문화 시설)
 LEFT JOIN mart.region_scores sc USING (region_code)    -- 같은 파일 (분야 점수·별점)
+LEFT JOIN mart.region_health_env he USING (region_code)    -- sql/mart/86_health_env.sql (안전·의료·환경)
+LEFT JOIN mart.region_health_scores hs USING (region_code) -- 같은 파일 (점수·별점)
 WHERE r.is_leaf;
 ALTER TABLE mart.region_summary ADD PRIMARY KEY (region_code);

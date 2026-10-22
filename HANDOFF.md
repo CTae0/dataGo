@@ -319,6 +319,20 @@ docker compose exec db psql -U eodi -d eodi -f /sql/load_public_fee.sql
 - **글꼴·토큰** (`styles.css` `:root`): Pretendard Variable(jsdelivr v1.3.9). 글자 `--fs-attr 12`(출처만) / `xs 13` / `sm 15`(휴대폰 16) / `md 17` / `lg 20` / `xl 24` / `2xl 30`. 누르는 영역 `--tap 44px`. `word-break: keep-all`.
 - **순위 기준 (`sort`):** 퀴즈 마지막 문항(답 3개 a/b/c = 알뜰 / 딱 중간 / 프리미엄) + 결과 맨 위 스위치. 생활비 점수만 바뀐다(백분위 p: 100−p / 100−2|p−50| / p). 수준 배지는 늘 생활비 기준이고, 비싼 쪽 절반은 "비싼 순 상위 N%"로 보여 준다.
 
+## 2026-10-22 안전·의료·환경 지표 + 지도 축소 한계
+- **지도:** `MapView.jsx` `limitToKorea` — 한반도 전체가 보이는 줌을 minZoom으로, 그때 보이는 범위를 maxBounds로 둔다 (화면 크기가 바뀌면 다시 잰다). maxZoom 12.
+- **수집기 `health_env.py`:** hospital / pharmacy / emergency (국립중앙의료원 → `raw.poi`), air (에어코리아 시군구별 1시간 값 → `raw.air_sigungu_hourly`, **API가 최근 24시간만 줘서 매일 쌓아야 함**), crime (경찰청 CSV → `raw.crime_region`, `datago_periodic` 다운로드 재사용).
+  - 테이블: `sql/init/13_health_env.sql` (기존 DB는 `sql/migrations/009_health_env.sql`, 적용함). 호출 한도: `pipeline/quota.py`.
+  - 지역 매핑: `region_xwalk.py`에 `airkorea`·`police_crime` 추가 ('부산 진구' → 부산진구 별칭).
+  - Airflow: `eodi_air_daily`(매일 09:20), 시설·범죄는 `eodi_poi_monthly`의 `health_facilities`, 집계는 `eodi_build_mart`의 `health_env`(85 다음).
+- **마트 `sql/mart/86_health_env.sql`:** `mart.region_health_env`(개수·응급실 직선거리·범죄·PM2.5) + `mart.region_health_scores`(점수·별점).
+  - 병원·약국·소아과 = 인구 대비 + 면적 대비 백분위 평균, 응급실 = 가까울수록, 치안 = 주민 1천 명당 강력·절도·폭력범죄 적을수록, 공기 = PM2.5 낮을수록.
+  - **공기 점수는 1시간 값이 720시간(30일) 넘게 쌓인 뒤부터** 매긴다. 그 전까지 환경 = 공원 점수.
+  - 한계: 범죄는 발생 장소 기준(도심·관광지 불리), 응급실 거리는 대표점 직선거리, 소아과는 이름 기준(소아·어린이·아동).
+- **질문 (편의 묶음):** 소아과(아이 있을 때) · 밤길 · 병원 · 응급실 · 공기. 가중치 0.08/0.07/0.06/0.06/0.06, 상한 `MAX_AMENITY_WEIGHT` 0.5.
+- **화면:** 별점 5분야(`format.js STAR_GROUPS`: 교육·문화·의료·안전·환경) — 카드·랜덤·지역 요약·공유 이미지. 상세 패널 '안전·의료·환경' 섹션. 지도 지표 5개 추가(의료 점수·응급실 거리·병의원·범죄·PM2.5).
+- **다음:** 정책·지원금(2단계)은 「행정안전부_대한민국 공공서비스(혜택) 정보」(data.go.kr 15113968) 활용신청이 필요.
+
 ## 다음 작업
 1. **V-World 인증키 발급(사용자)** → `.env`에 `VWORLD_API_KEY`. 시군구 경계 LT_C_ADSIGG_INFO(현행, GeoJSON)를 받아 PostGIS에 적재.
    (data.go.kr 경계 원천들은 2025년 기준이라 2026 인천·화성 개편이 빠짐)

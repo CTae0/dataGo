@@ -84,6 +84,22 @@ METRICS = [
     {"id": "library_per_100k", "label": "도서관 (인구 10만 명당)", "detail": "공공·국립도서관 수 ÷ 주민등록 인구 × 10만 (문화기반시설총람)",
      "unit": "곳", "field": "library_per_100k", "gran": None, "better": "high", "group": "생활편의",
      "source": "culture_facility", "sources": ["culture_facility", "mois_population"]},
+    # 안전·의료·환경 (sql/mart/86_health_env.sql)
+    {"id": "medical_score", "label": "의료 점수", "detail": "병원·의원·약국(인구 대비·면적 대비)과 응급실 거리를 전국과 비교 (0~100, 높을수록 든든)",
+     "unit": "점", "field": "medical_score", "gran": None, "better": "high", "group": "안전·의료·환경",
+     "source": "nmc_hospital", "sources": ["nmc_hospital", "nmc_pharmacy", "nmc_emergency", "mois_population"]},
+    {"id": "emergency_km", "label": "응급실까지 거리", "detail": "시군구 안쪽 대표점에서 가장 가까운 응급의료기관까지 직선거리 (국립중앙의료원)",
+     "unit": "km", "field": "emergency_km", "gran": None, "better": "low", "group": "안전·의료·환경",
+     "source": "nmc_emergency", "sources": ["nmc_emergency"]},
+    {"id": "hospitals_per_10k", "label": "병·의원 (인구 1만 명당)", "detail": "종합병원·병원·의원 수 ÷ 주민등록 인구 × 1만 (치과·한방 제외)",
+     "unit": "곳", "field": "hospitals_per_10k", "gran": None, "better": "high", "group": "안전·의료·환경",
+     "source": "nmc_hospital", "sources": ["nmc_hospital", "mois_population"]},
+    {"id": "crimes_per_1k", "label": "범죄 발생 (주민 1천 명당)", "detail": "강력·절도·폭력범죄 연간 발생 건수 ÷ 주민등록 인구 × 1천 (경찰청, 발생 장소 기준이라 도심·관광지가 높게 나와요)",
+     "unit": "건", "field": "crimes_per_1k", "gran": "crime_gran", "better": "low", "group": "안전·의료·환경",
+     "source": "police_crime", "sources": ["police_crime", "mois_population"]},
+    {"id": "pm25", "label": "초미세먼지 (PM2.5)", "detail": "에어코리아 시군구별 1시간 값을 날마다 쌓은 평균 (㎍/㎥, 확정 전 자료)",
+     "unit": "㎍/㎥", "field": "pm25", "gran": "pm25_gran", "better": "low", "group": "안전·의료·환경",
+     "source": "airkorea_stats", "sources": ["airkorea_stats"]},
 ]
 GRAN_RANK = {"exact": 0, "si": 1, "legacy": 2, "sido_part": 3, "sido": 4}
 

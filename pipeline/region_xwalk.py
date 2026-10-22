@@ -15,6 +15,8 @@
   poi             raw.poi 주소에서 뽑은 시도|시군구    예: '경기도|용인시 수지구', '세종특별자치시|' (좌표 없는 시설·경계 밖 점)
   kapt            raw.kapt_complex 시도|시군구          예: '서울특별시|종로구', '경기도|수원장안구'
   kepco_house     raw.kepco_house_power 시도명|시군구명    예: '광주광역시|북구', '경기도|화성시 동탄구', '인천광역시|서구'(legacy)
+  airkorea        raw.air_sigungu_hourly 시도|시군구        예: '경기|수원시' → 수원 일반구 4곳 (si), '세종|세종시'
+  police_crime    raw.crime_region 시도|시군구 (모든 연도)  예: '경기도|고양시' (si), '인천|중구' → 제물포구·영종구 (legacy)
 국토부 전월세는 LAWD_CD = region_code라서 매핑이 필요 없다.
 """
 import re
@@ -55,6 +57,7 @@ SIGUNGU_ALIAS = {
     ("36", "세종특별자치시"): [("36", "세종시")],
     ("28", "남구"): [("28", "미추홀구")],
     ("44", "게룡시"): [("44", "계룡시")],   # 착한가격업소 오타
+    ("26", "진구"): [("26", "부산진구")],     # 경찰청 범죄 통계 표기
     ("28", "중구"): [("28", "제물포구"), ("28", "영종구")], ("28", "동구"): [("28", "제물포구")],
     ("28", "서구"): [("28", "서해구"), ("28", "검단구")],
 }
@@ -169,6 +172,10 @@ def collect(cur):
     keys += [("kapt", f"{sd}|{sg}", f"{sd} {sg}", "sigungu", sd, sg) for sd, sg in cur.fetchall()]
     cur.execute("SELECT DISTINCT metro_nm, city_nm FROM raw.kepco_house_power")
     keys += [("kepco_house", f"{sd}|{sg}", f"{sd} {sg}", "sigungu", sd, sg) for sd, sg in cur.fetchall()]
+    cur.execute("SELECT DISTINCT sido_nm, city_nm FROM raw.air_sigungu_hourly")
+    keys += [("airkorea", f"{sd}|{sg}", f"{sd} {sg}", "sigungu", sd, sg) for sd, sg in cur.fetchall()]
+    cur.execute("SELECT DISTINCT sido_nm, sigungu_nm FROM raw.crime_region")
+    keys += [("police_crime", f"{sd}|{sg}", f"{sd} {sg}", "sigungu", sd, sg) for sd, sg in cur.fetchall()]
     return keys
 
 

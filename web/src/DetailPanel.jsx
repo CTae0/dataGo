@@ -3,6 +3,7 @@ import TrendChart from './TrendChart.jsx'
 import { apiFetch } from './api.js'
 import PowerChart from './PowerChart.jsx'
 import { formatValue, GRAN_LABEL, isFallback } from './format.js'
+import { starText } from './Results.jsx'
 
 const UTIL_LABEL = { water_20m3: '상수도 20㎥', sewer_20m3: '하수도 20㎥', trash_20l: '종량제봉투 20ℓ',
                      gas_total: '도시가스(월)', bus_card: '시내버스(카드)', taxi: '택시 기본요금' }
@@ -103,6 +104,29 @@ export default function DetailPanel({ code, summary, metrics, sources, onClose, 
                 </tbody>
               </table>
               <p className="muted small">점수는 인구 대비 비율과 면적(㎢) 대비 밀도를 전국과 비교한 백분위를 반반 섞은 값 (0~100). 나이스·유치원알리미·문화기반시설총람(2023 기준)·도시공원 표준데이터</p>
+            </details>
+          )}
+
+          {summary.medical_score != null && (
+            <details className="dsec">
+              <summary><h3>안전·의료·환경</h3></summary>
+              <table className="plain">
+                <tbody>
+                  <tr><th>의료 점수</th><td>{Math.round(summary.medical_score)}점 {starText(summary.medical_stars)}</td></tr>
+                  <tr><th>병원·의원 · 약국</th><td>{Math.round(summary.hospitals).toLocaleString('ko-KR')}곳 · {Math.round(summary.pharmacies).toLocaleString('ko-KR')}곳</td></tr>
+                  <tr><th>소아과 (이름 기준)</th><td>{Math.round(summary.pediatrics)}곳</td></tr>
+                  <tr><th>가장 가까운 응급실</th><td>{summary.emergency_km != null ? `약 ${summary.emergency_km}km` : '자료 없음'}{summary.emergency_name ? ` · ${summary.emergency_name}` : ''}</td></tr>
+                  {summary.safety_score != null && (
+                    <tr><th>안전 (치안)</th><td>{Math.round(summary.safety_score)}점 {starText(summary.safety_stars)} · 주민 1천 명당 범죄 {summary.crimes_per_1k}건 <Gran g={summary.crime_gran} /></td></tr>
+                  )}
+                  <tr><th>환경</th><td>{summary.env_score != null ? `${Math.round(summary.env_score)}점 ${starText(summary.env_stars)}` : '자료 없음'}</td></tr>
+                  <tr><th>초미세먼지 (PM2.5)</th><td>{summary.pm25 != null ? `${summary.pm25}㎍/㎥` : '자료 없음'}{summary.pm25_from ? ` · ${summary.pm25_from}~${summary.pm25_to} 평균` : ''}</td></tr>
+                </tbody>
+              </table>
+              <p className="muted small">
+                의료는 병원·의원·약국(인구 대비·면적 대비)과 응급실 직선거리, 안전은 {summary.crime_year || ''}년 강력·절도·폭력범죄 발생 건수(발생 장소 기준이라 도심·관광지가 불리),
+                환경은 초미세먼지와 공원 점수의 평균이에요. 국립중앙의료원·경찰청·에어코리아(확정 전 자료)
+              </p>
             </details>
           )}
 

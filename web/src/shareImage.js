@@ -1,7 +1,7 @@
 // 결과 공유 이미지 (1080×1350 PNG, 1위 카드 하나). 라이브러리 없이 canvas로 그린다.
 // 카드 그림은 화면에 이미 있는 Scene SVG를 그대로 옮겨 그린다 (애니메이션은 멈춘 한 장면).
 // 출처 표시: 공공데이터 원천을 한 줄로 밝힌다 (ATTRIBUTION.md — 오피넷은 출처 명시 필수).
-import { GROUP_COLOR, levelText } from './format.js'
+import { GROUP_COLOR, STAR_GROUPS, levelText } from './format.js'
 
 const W = 1080, H = 1350
 const FONT = '"Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif'
@@ -95,15 +95,17 @@ export async function makeShareImage({ results, groups, persona, sceneFor, host,
   } else { ctx.fillStyle = '#e8f3ff'; ctx.fillRect(ix, iy, iw, ih) }
   ctx.restore()
   const st = x.card?.stars
-  if (st && (st.edu || st.culture)) {   // 그림 오른쪽 위: 생활편의 별점
-    const star = (n) => (n ? '★'.repeat(n) + '☆'.repeat(4 - n) : '–')
-    const label = `교육 ${star(st.edu)}   문화 ${star(st.culture)}`
-    ctx.font = `700 28px ${FONT}`
-    const lw = ctx.measureText(label).width + 40
+  const shown = STAR_GROUPS.filter((g) => st?.[g.key])
+  if (shown.length) {   // 그림 오른쪽 위: 생활편의 별점 (분야마다 한 줄)
+    const star = (n) => '★'.repeat(n) + '☆'.repeat(4 - n)
+    ctx.font = `700 26px ${FONT}`
+    const lines = shown.map((g) => `${g.label} ${star(st[g.key])}`)
+    const lw = Math.max(...lines.map((l) => ctx.measureText(l).width)) + 40
+    const lh = 38
     ctx.fillStyle = 'rgba(255,255,255,0.92)'
-    ctx.beginPath(); ctx.roundRect(ix + iw - lw - 20, iy + 20, lw, 52, 26); ctx.fill()
+    ctx.beginPath(); ctx.roundRect(ix + iw - lw - 20, iy + 20, lw, lines.length * lh + 20, 22); ctx.fill()
     ctx.fillStyle = '#8a5a00'
-    ctx.fillText(label, ix + iw - lw, iy + 56)
+    lines.forEach((l, i) => ctx.fillText(l, ix + iw - lw, iy + 56 + i * lh))
   }
 
   let ty = iy + ih + 56

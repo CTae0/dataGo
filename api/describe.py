@@ -66,6 +66,11 @@ def card(result, features, sort="cheap"):
     for key, label in (("elem", "초등학교"), ("library", "도서관"), ("museum", "박물관·미술관")):
         if f.get(key):
             facts.append(f"{label} {round(f[key]):,}곳")
+    # 의료 (sql/mart/86_health_env.sql)
+    if f.get("emergency_km") is not None:
+        facts.append(f"응급실까지 약 {f['emergency_km']:.0f}km" if f["emergency_km"] >= 1 else "응급실이 1km 안")
+    if f.get("hospitals"):
+        facts.append(f"병·의원 {round(f['hospitals']):,}곳")
     items = result["items"]
     biggest = max(items, key=lambda k: items[k]["value"])
     lv = level(result["national_pct"])
@@ -88,13 +93,21 @@ def card(result, features, sort="cheap"):
         what = "전기·가스·물" + ("·관리비" if with_mgmt else "")
         text += f" {what}{josa(what, '은', '는')} 합쳐서 월 약 {_won_short(energy)}이에요."
     edu_st, cul_st = f.get("edu_stars"), f.get("culture_stars")
+    med_st, safe_st, env_st = f.get("medical_stars"), f.get("safety_stars"), f.get("env_stars")
     if cul_st == 4:
         text += " 도서관·박물관·공원이 넉넉해서 주말이 심심할 틈이 없어요."
     elif edu_st == 4:
         text += " 학교·유치원·학원이 넉넉한 동네예요."
+    if med_st == 4:
+        text += " 병원·약국이 가까워 아플 때 든든해요."
+    elif safe_st == 4:
+        text += " 범죄 발생이 적은 조용한 편이에요."
+    elif env_st == 4:
+        text += " 공기가 맑고 공원도 넉넉해요."
     groups = {}
     for v in items.values():
         if v.get("group"):
             groups[v["group"]] = groups.get(v["group"], 0) + v["value"]
     return {"archetype": arch, "nickname": nick, "intro": intro, "facts": facts, "text": text, "level": lv,
-            "groups": groups, "stars": {"edu": edu_st, "culture": cul_st}}
+            "groups": groups,
+            "stars": {"edu": edu_st, "culture": cul_st, "medical": med_st, "safety": safe_st, "env": env_st}}

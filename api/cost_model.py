@@ -50,8 +50,8 @@ SUPPLY_RATIO = 1.3
 #   세부 질문에서 A를 고른 시설만 가중치를 받는다.
 #   종합 점수 = (1 − Σw) × 생활비 점수 + Σ (w_i × 지표 점수_i)
 #   생활비 점수 = 전국 시군구 중 싼 순서를 0~100으로 (가장 싼 곳 100). 하나도 안 고르면 Σw = 0 → 생활비 순서 그대로.
-#   가중치는 '생활비가 여전히 가장 큰 기준'이 되게 정한 설계 값(근거 통계 아님). 다 고르면 합이 0.66이라
-#   MAX_AMENITY_WEIGHT(0.45)에 맞춰 같은 비율로 줄인다.
+#   가중치는 '생활비가 여전히 가장 큰 기준'이 되게 정한 설계 값(근거 통계 아님). 다 고르면 합이 0.99라
+#   MAX_AMENITY_WEIGHT(0.5)에 맞춰 같은 비율로 줄인다.
 INDICATORS = {   # 키: (요약 표 칸, 가중치, 화면 이름, 분야)
     "kinder": ("kinder_score", 0.10, "유치원", "교육"),
     "elem": ("elem_score", 0.10, "초등학교", "교육"),
@@ -61,8 +61,15 @@ INDICATORS = {   # 키: (요약 표 칸, 가중치, 화면 이름, 분야)
     "museum": ("museum_score", 0.06, "박물관·미술관", "문화"),
     "arts": ("arts_score", 0.06, "문예회관·문화센터", "문화"),
     "park": ("park_score", 0.09, "공원", "생활"),
+    # 안전·의료·환경 (sql/mart/86_health_env.sql mart.region_health_scores)
+    "pediatric": ("pediatric_score", 0.08, "소아과", "의료"),
+    "safety": ("safety_score", 0.07, "치안", "안전"),
+    "hospital": ("hospital_score", 0.06, "병원·약국", "의료"),
+    "emergency": ("emergency_score", 0.06, "응급실 거리", "의료"),
+    "air": ("air_score", 0.06, "공기", "환경"),
 }
-MAX_AMENITY_WEIGHT = 0.45
+MAX_AMENITY_WEIGHT = 0.5   # 다 고르면 합이 0.99 → 0.5로 줄인다 (생활비가 여전히 절반)
+GROUP_SCORES = ("edu", "culture", "medical", "safety", "env")   # 분야 점수·별점 (요약 표 <분야>_score, <분야>_stars)
 CAR_KM_PER_DAY = 30.8
 CAR_KM_PER_MONTH = round(CAR_KM_PER_DAY * 365 / 12)   # 937km
 FUEL_KM_PER_L = 12.0
@@ -200,6 +207,26 @@ QUESTIONS = [
         {"id": "a", "label": "저녁마다 공원 한 바퀴, 없으면 못 살아", "hint": "매일 산책이나 운동을 해요", "set": {"amenity": {"park": True}}},
         {"id": "b", "label": "걷는 건 출퇴근으로 충분", "hint": "산책은 가끔", "set": {"amenity": {"park": False}}},
     ]},
+    {"id": "pediatric", "group": "편의", "title": "소아과는?", "show_if": {"living": "b", "has_kids": "a"}, "options": [
+        {"id": "a", "label": "열나면 바로 달려갈 소아과가 코앞에", "hint": "아이 병원에 자주 다녀요", "set": {"amenity": {"pediatric": True}}},
+        {"id": "b", "label": "조금 멀어도 괜찮아, 튼튼이라서", "hint": "아이 병원은 가끔 가요", "set": {"amenity": {"pediatric": False}}},
+    ]},
+    {"id": "safety", "group": "편의", "title": "밤길은?", "options": [
+        {"id": "a", "label": "야근 후 밤 11시에도 마음 편히 걸어야", "hint": "늦게까지 혼자 걸어 다녀요", "set": {"amenity": {"safety": True}}},
+        {"id": "b", "label": "해 지면 집순이·집돌이", "hint": "해 지면 집에 있어요", "set": {"amenity": {"safety": False}}},
+    ]},
+    {"id": "hospital", "group": "편의", "title": "병원은?", "options": [
+        {"id": "a", "label": "콧물만 나도 바로 병원·약국", "hint": "병원·약국이 가까워야 마음 편해요", "set": {"amenity": {"hospital": True}}},
+        {"id": "b", "label": "웬만한 건 꿀물 한 잔으로 버팀", "hint": "아플 때만 찾아가요", "set": {"amenity": {"hospital": False}}},
+    ]},
+    {"id": "emergency", "group": "편의", "title": "응급실은?", "options": [
+        {"id": "a", "label": "만약을 대비해 응급실이 가까워야", "hint": "지병이 있거나 어르신과 살아요", "set": {"amenity": {"emergency": True}}},
+        {"id": "b", "label": "아직 팔팔해서 괜찮아", "hint": "아직 튼튼해요", "set": {"amenity": {"emergency": False}}},
+    ]},
+    {"id": "air", "group": "편의", "title": "공기는?", "options": [
+        {"id": "a", "label": "미세먼지 앱 확인이 아침 루틴", "hint": "미세먼지 앱을 매일 봐요", "set": {"amenity": {"air": True}}},
+        {"id": "b", "label": "공기 맛은 잘 모르겠어", "hint": "공기는 신경 안 써요", "set": {"amenity": {"air": False}}},
+    ]},
     {"id": "capital", "group": "어디서", "title": "서울과의 거리는?", "options": [
         {"id": "a", "label": "수도권 아니면 안 돼, 한강 뷰는 못 참지", "hint": "서울·경기·인천에 살고 싶어요", "set": {"where": {"capital": True}}},
         {"id": "b", "label": "서울은 가끔 놀러 가면 충분", "hint": "어디든 괜찮아요", "set": {}},
@@ -237,7 +264,8 @@ DEFAULTS = {"living": "a", "family_size": "a", "tenure": "b", "house": "b", "sho
             "dining": "b", "trash": "b", "transit": "a", "capital": "b", "metro": "b", "sea": "b", "airport": "b",
             "vibe": "b", "mart": "b", "drive": "b",
             "has_kids": "b", "kid_age": "b", "kinder": "b", "elem": "b", "secondary": "b", "academy": "b",
-            "library": "b", "museum": "b", "arts": "b", "park": "b", "sort": "a"}
+            "library": "b", "museum": "b", "arts": "b", "park": "b",
+            "pediatric": "b", "safety": "b", "hospital": "b", "emergency": "b", "air": "b", "sort": "a"}
 # 지역 조건 ↔ mart.region_features. 조건을 다 맞추는 곳이 MIN_RESULTS 미만이면 앞에서부터 하나씩 뺀다
 WHERE = [  # (키, 화면 이름, 지역이 조건을 맞추는지)
     ("need_mart", "대형마트", lambda r: (r.get("grocery_stores") or 0) > 0),
@@ -413,7 +441,8 @@ def recommend(regions, answers):
 
     # 생활편의 지표 점수: 결측은 같은 시도 중위값(없으면 전국 중위값)으로 채운다
     weights = amenity_weights(a)
-    fields = [("edu_score", "edu"), ("culture_score", "culture")] + [(INDICATORS[k][0], k) for k in INDICATORS]
+    fields = ([(f"{g}_score", g) for g in GROUP_SCORES]
+              + [(INDICATORS[k][0], k) for k in INDICATORS])
     for field, _ in fields:
         pool_sido, pool_nat = {}, []
         for x in everyone:
@@ -436,12 +465,12 @@ def recommend(regions, answers):
                   for k, w in weights.items()]
         x["scores"] = {
             "cost": round(x["_cost_score"], 1),
-            "edu": round(sc["edu_score"][0], 1), "culture": round(sc["culture_score"][0], 1),
-            "edu_filled": sc["edu_score"][1], "culture_filled": sc["culture_score"][1],
+            **{g: round(sc[f"{g}_score"][0], 1) for g in GROUP_SCORES},
+            **{f"{g}_filled": sc[f"{g}_score"][1] for g in GROUP_SCORES},
             "picked": picked,
             "total": round((1 - wsum) * x["_cost_score"]
                            + sum(w * sc[INDICATORS[k][0]][0] for k, w in weights.items()), 2),
-            "edu_stars": x["_row"].get("edu_stars"), "culture_stars": x["_row"].get("culture_stars"),
+            **{f"{g}_stars": x["_row"].get(f"{g}_stars") for g in GROUP_SCORES},
         }
     if weights or a["sort"] != "cheap":   # 종합 점수 순 (같으면 싼 곳 먼저). 알뜰·편의 없음이면 위의 생활비 순서 그대로
         everyone.sort(key=lambda x: (-x["scores"]["total"], x["total"], x["region_code"]))
@@ -478,7 +507,8 @@ def recommend(regions, answers):
             (f"순위 기준은 「{SORT_LABEL[a['sort']]}」입니다 (알뜰: 쌀수록, 프리미엄: 비쌀수록, 딱 중간: 전국 가운데에 가까울수록 생활비 점수가 높음). "
              + "순위는 생활비 점수 " + f"{round((1 - wsum) * 100)}%"
              + "".join(f" + {INDICATORS[k][2]} {round(w * 100)}%" for k, w in weights.items())
-             + "로 매겼습니다. 시설 점수는 학교·학원(나이스), 유치원(유치원알리미), 도서관·박물관·미술관·문예회관(문화기반시설총람), 공원(도시공원 표준데이터)을 인구 대비 비율과 면적(㎢) 대비 밀도를 전국과 비교해 반반 섞은 0~100점입니다."),
+             + "로 매겼습니다. 시설 점수는 학교·학원(나이스), 유치원(유치원알리미), 도서관·박물관·미술관·문예회관(문화기반시설총람), 공원(도시공원 표준데이터), 병원·의원·약국(국립중앙의료원)을 인구 대비 비율과 면적(㎢) 대비 밀도를 전국과 비교해 반반 섞은 0~100점입니다. 소아과는 이름에 소아·어린이·아동이 든 병·의원입니다."),
+            "응급실 거리는 시군구 안쪽 대표점에서 가장 가까운 응급의료기관까지 직선거리라, 넓은 군에서는 실제 거리와 다를 수 있습니다. 치안은 경찰청 시군구별 강력·절도·폭력범죄 발생 건수를 주민 수로 나눈 값이라, 사람이 많이 오가는 도심·관광지는 실제보다 불리하게 나옵니다. 공기는 에어코리아 시군구별 초미세먼지(PM2.5) 1시간 값을 날마다 쌓은 평균입니다(확정 전 자료). 쌓인 기간이 30일이 안 되는 동안은 공기 점수를 모든 지역에 같게(중위값) 둡니다.",
             "모든 값은 추정치이며 실제와 다를 수 있습니다.",
         ],
     }

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import Scene from './Scene.jsx'
 import ShareBox from './ShareBox.jsx'
-import { GROUP_COLOR, ITEM_COLOR, NA_COLOR, levelText, manwon, won } from './format.js'
+import { GROUP_COLOR, ITEM_COLOR, NA_COLOR, STAR_GROUPS, levelText, manwon, won } from './format.js'
 
 const MEDALS = ['🥇 1위', '🥈 2위', '🥉 3위']
 
@@ -69,12 +69,13 @@ export function starText(n) { return n ? '★'.repeat(n) + '☆'.repeat(4 - n) :
 function Stars({ x }) {
   const st = x.card?.stars
   const picked = x.scores?.picked || []
-  if ((!st || (!st.edu && !st.culture)) && !picked.length) return null
+  const shown = STAR_GROUPS.filter((g) => st?.[g.key])
+  if (!shown.length && !picked.length) return null
   return (
     <>
-      {st && (st.edu || st.culture) && (
-        <span className="pcard-stars" aria-label={`교육 ${st.edu || '-'}점, 문화 ${st.culture || '-'}점 (4점 만점)`}>
-          <span>교육 <b>{starText(st.edu)}</b></span><span>문화 <b>{starText(st.culture)}</b></span>
+      {shown.length > 0 && (
+        <span className="pcard-stars" aria-label={shown.map((g) => `${g.label} ${st[g.key]}점`).join(', ') + ' (4점 만점)'}>
+          {shown.map((g) => <span key={g.key}>{g.label} <b>{starText(st[g.key])}</b></span>)}
         </span>
       )}
       {picked.length > 0 && (   // 세부 질문에서 고른 시설: 0~100점 (전국 비교)

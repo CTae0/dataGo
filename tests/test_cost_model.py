@@ -283,7 +283,8 @@ def test_kid_questions_follow_has_kids_answer():
 
 
 def test_all_picks_capped():
-    picks = {k: "a" for k in ("elem", "secondary", "academy", "library", "museum", "arts", "park")}
+    picks = {k: "a" for k in ("elem", "secondary", "academy", "library", "museum", "arts", "park",
+                              "pediatric", "safety", "hospital", "emergency", "air")}
     w = cm.amenity_weights(ans(**FAMILY, has_kids="a", kid_age="b", **picks))
     assert sum(w.values()) == pytest.approx(cm.MAX_AMENITY_WEIGHT)
 
@@ -330,3 +331,35 @@ def test_card_text_follows_sort():
     assert "가장 높아요" in describe.card(res[0], regions[-1], "premium")["text"]
     res, _, _ = cm.recommend(regions, {**SOLO, "sort": "b"})
     assert "한가운데" in describe.card(res[0], regions[5], "middle")["text"]
+
+
+# ── 안전·의료·환경 ──────────────────────────────────────
+def test_health_questions_for_everyone_and_pediatric_only_with_kids():
+    solo = ans(**SOLO)["answers"]
+    assert {"safety", "hospital", "emergency", "air"} <= set(solo) and "pediatric" not in solo
+    assert "pediatric" not in ans(**FAMILY, has_kids="b")["answers"]
+    assert "pediatric" in ans(**FAMILY, has_kids="a", kid_age="a")["answers"]
+    assert cm.amenity_weights(ans(**FAMILY, has_kids="b", pediatric="a")) == {}   # 아이 없으면 소아과 무시
+    w = cm.amenity_weights(ans(**SOLO, safety="a", air="a"))
+    assert w == {"safety": cm.INDICATORS["safety"][1], "air": cm.INDICATORS["air"][1]}
+
+
+def test_safety_answer_lifts_safe_region_and_group_stars_pass_through():
+    cheap = {**CHUNCHEON, "region_code": "90001", "sigungu": "싼군", "cost_s": 30.0}
+    safe = {**CHUNCHEON, "region_code": "90002", "sigungu": "안전시", "cost_s": 32.0}
+    filler = [({**GANGNAM, "region_code": f"91{i:03d}", "sigungu": f"비싼구{i}"}, (50, 50)) for i in range(20)]
+    regions = _scored([(cheap, (50, 50)), (safe, (50, 50))] + filler)
+    for r in regions:
+        r["safety_score"] = 95.0 if r["sigungu"] == "안전시" else 5.0
+        r["medical_stars"], r["safety_stars"], r["env_stars"] = 2, (4 if r["sigungu"] == "안전시" else 1), 3
+    base, _, _ = cm.recommend(regions, SOLO)
+    res, _, asm = cm.recommend(regions, {**SOLO, "safety": "a"})
+    assert base[0]["sigungu"] == "싼군" and res[0]["sigungu"] == "안전시"
+    assert res[0]["scores"]["safety_stars"] == 4 and any("치안" in n for n in asm["notes"])
+    card = describe.card(res[0], next(r for r in regions if r["sigungu"] == "안전시"))
+    assert card["stars"]["safety"] == 4 and card["stars"]["medical"] == 2
+
+
+def test_health_indicators_belong_to_new_areas():
+    assert set(cm.GROUP_SCORES) >= {"medical", "safety", "env"}
+    assert {k for k, v in cm.INDICATORS.items() if v[3] in ("의료", "안전", "환경")} ==         {"pediatric", "safety", "hospital", "emergency", "air"}

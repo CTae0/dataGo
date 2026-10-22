@@ -114,7 +114,7 @@
 .rs-metric { display: grid; text-align: right; font-size: var(--fs-xs); color: var(--text-secondary); }
 .rs-metric b { font-size: var(--fs-md); color: var(--text-primary); font-variant-numeric: tabular-nums; }
 .rs-mine { margin: 0; font-size: var(--fs-sm); }
-.rs-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--sp-2); margin: 0; }
+.rs-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-2); margin: 0; }
 .rs-grid div { background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--r-1); padding: 8px 10px; }
 .rs-grid dt { font-size: var(--fs-xs); color: var(--text-muted); }
 .rs-grid dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; }

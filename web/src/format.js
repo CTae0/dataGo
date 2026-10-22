@@ -85,3 +85,9 @@ export function levelText(level) {
   const p = level.pct
   return p <= 50 ? `${level.name} · 저렴한 순 상위 ${p}%` : `${level.name} · 비싼 순 상위 ${Math.max(1, 101 - p)}%`
 }
+
+// 생활편의 분야 별점 (1~4, 전국 사분위). 카드·지역 요약·공유 이미지가 같은 순서로 쓴다
+export const STAR_GROUPS = [
+  { key: 'edu', label: '교육' }, { key: 'culture', label: '문화' }, { key: 'medical', label: '의료' },
+  { key: 'safety', label: '안전' }, { key: 'env', label: '환경' },
+]

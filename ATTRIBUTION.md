@@ -30,6 +30,11 @@
 | `neis_academy` | [나이스 교육정보 개방포털 — 학원교습소정보](https://open.neis.go.kr/portal/mainPage.do) | 교육부·시도교육청 | 미확인 (확인 전까지 표시) | 출처: 나이스 교육정보 개방포털(open.neis.go.kr) 「학원교습소정보」 |
 | `kinder_info` | [유치원알리미 — 유치원 일반현황](https://e-childschoolinfo.moe.go.kr/openApi/openApiList.do) | 교육부 | 미확인 (확인 전까지 표시) | 출처: 유치원알리미(e-childschoolinfo.moe.go.kr) 「유치원 일반현황」 |
 | `mois_population` | [행정안전부_법정동별 성/연령별 주민등록 인구수](https://www.data.go.kr/data/15108074/openapi.do) | 행정안전부 | 미확인 (확인 전까지 표시) | 출처: 공공데이터포털(data.go.kr) 「행정안전부_법정동별 성/연령별 주민등록 인구수」 |
+| `nmc_hospital` | [국립중앙의료원_전국 병·의원 찾기 서비스](https://www.data.go.kr/data/15000736/openapi.do) | 국립중앙의료원 | 미확인 (확인 전까지 표시) | 출처: 공공데이터포털(data.go.kr) 「국립중앙의료원_전국 병·의원 찾기 서비스」 |
+| `nmc_pharmacy` | [국립중앙의료원_전국 약국 정보 조회 서비스](https://www.data.go.kr/data/15000576/openapi.do) | 국립중앙의료원 | 미확인 (확인 전까지 표시) | 출처: 공공데이터포털(data.go.kr) 「국립중앙의료원_전국 약국 정보 조회 서비스」 |
+| `nmc_emergency` | [국립중앙의료원_전국 응급의료기관 정보 조회 서비스](https://www.data.go.kr/data/15000563/openapi.do) | 국립중앙의료원 | 미확인 (확인 전까지 표시) | 출처: 공공데이터포털(data.go.kr) 「국립중앙의료원_전국 응급의료기관 정보 조회 서비스」 |
+| `airkorea_stats` | [한국환경공단_에어코리아_대기오염통계 현황](https://www.data.go.kr/data/15073855/openapi.do) | 한국환경공단 | 공공누리 제3유형 (변경 금지 — 평균만 표시) | 출처: 공공데이터포털(data.go.kr) 「한국환경공단_에어코리아_대기오염통계 현황」 (확정 전 실시간 자료) |
+| `police_crime` | [경찰청_범죄 발생 지역별 통계](https://www.data.go.kr/data/3074462/fileData.do) | 경찰청 | 미확인 (확인 전까지 표시) | 출처: 공공데이터포털(data.go.kr) 「경찰청_범죄 발생 지역별 통계」 |
 | `mois_cinema` | [행정안전부_문화_영화상영관 조회서비스](https://www.data.go.kr/data/15154848/openapi.do) | 행정안전부 | 미확인 | (아직 수집 못 함 — API가 'HTTP 에러 04'를 돌려줌) |
 
 - 두 표준데이터의 이용조건(저작자표시)은 2026-10-21 활용신청 때 확인한 내용입니다. 데이터셋 페이지에는 따로 표기돼 있지 않습니다.

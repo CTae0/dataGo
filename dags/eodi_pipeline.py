@@ -113,8 +113,21 @@ with DAG("eodi_poi_monthly", schedule="0 8 3 * *", start_date=START, catchup=Fal
          doc_md="매월 3일: 교육(나이스 학교·학원, 유치원알리미)·문화(문화기반시설총람, 도시공원, 영화상영관) 시설과 "
                 "법정동별 연령별 인구를 다시 받고(원천별로 갈아 끼움) 지역 매핑을 갱신. 집계는 eodi_build_mart."):
     poi = bash("poi_all", "python poi.py all", execution_timeout=pendulum.duration(hours=2))
+    # 병원·약국·응급의료기관 (국립중앙의료원, 호출 110번 남짓) + 경찰청 범죄 통계 파일 (연 1회 갱신이라 매달 확인)
+    health = bash("health_facilities", "python health_env.py hospital && python health_env.py pharmacy "
+                  "&& python health_env.py emergency && python health_env.py crime",
+                  execution_timeout=pendulum.duration(hours=1))
     xwalk = bash("region_xwalk", "python -m pipeline.region_xwalk")
-    poi >> xwalk
+    [poi, health] >> xwalk
+
+# ── 미세먼지 (매일) ─────────────────────────────────────────
+with DAG("eodi_air_daily", schedule="20 9 * * *", start_date=START, catchup=False, max_active_runs=1,
+         default_args=DEFAULTS, tags=["eodi", "air"],
+         doc_md="매일 09:20: 에어코리아 시군구별 1시간 PM2.5(최근 24시간)를 쌓는다 (호출 17번 남짓). "
+                "하루라도 빠지면 그 시간대가 비므로 매일 돈다. 평균은 eodi_build_mart(86_health_env.sql)."):
+    air = bash("airkorea", "python health_env.py air", execution_timeout=pendulum.duration(minutes=20))
+    xwalk = bash("region_xwalk", "python -m pipeline.region_xwalk")
+    air >> xwalk
 
 # ── 지도용 집계 (매일 밤) ──────────────────────────────────
 with DAG("eodi_build_mart", schedule="30 23 * * *", start_date=START, catchup=False, max_active_runs=1,
@@ -131,8 +144,10 @@ with DAG("eodi_build_mart", schedule="30 23 * * *", start_date=START, catchup=Fa
     fuel = bash("fuel", "python -m pipeline.run_sql sql/mart/70_fuel.sql")
     mgmt = bash("mgmt", "python -m pipeline.run_sql sql/mart/80_mgmt.sql")
     amenities = bash("amenities", "python -m pipeline.run_sql sql/mart/85_amenities.sql")
+    health = bash("health_env", "python -m pipeline.run_sql sql/mart/86_health_env.sql")   # 85의 시설 배정·공원 점수를 쓴다
     summary = bash("region_summary", "python -m pipeline.run_sql sql/mart/90_region_summary.sql")
-    [rent, utility, grocery, dining, features, power, fuel, mgmt, amenities] >> summary
+    amenities >> health
+    [rent, utility, grocery, dining, features, power, fuel, mgmt, health] >> summary
 
 # ── 지역 기준 (연간) ───────────────────────────────────────
 with DAG("eodi_dim_region_yearly", schedule="0 3 20 7 *", start_date=START, catchup=False, max_active_runs=1,
