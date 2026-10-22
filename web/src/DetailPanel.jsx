@@ -43,8 +43,8 @@ export default function DetailPanel({ code, summary, metrics, sources, onClose, 
         <button type="button" className="close" onClick={onClose} aria-label="닫기">×</button>
       </div>
 
-      <section>
-        <h3>한눈에</h3>
+      <details className="dsec" open>
+        <summary><h3>한눈에</h3></summary>
         <dl className="kv">
           {metrics.map((m) => (
             <div key={m.id}>
@@ -56,26 +56,26 @@ export default function DetailPanel({ code, summary, metrics, sources, onClose, 
         {summary.rent_from_ym && (
           <p className="muted small">전월세: {summary.rent_from_ym.slice(0, 4)}.{summary.rent_from_ym.slice(4)} ~ {summary.rent_to_ym.slice(0, 4)}.{summary.rent_to_ym.slice(4)}, 거래 {Number(summary.rent_deals || 0).toLocaleString('ko-KR')}건</p>
         )}
-      </section>
+      </details>
 
       {error && <p className="error">상세를 불러오지 못했습니다: {error}</p>}
       {!detail && !error && <p className="muted">불러오는 중…</p>}
       {detail && (
         <>
-          <section>
-            <h3>월 주거비 추이</h3>
+          <details className="dsec" open>
+            <summary><h3>월 주거비 추이</h3></summary>
             <TrendChart rows={detail.rent_trend} />
-          </section>
+          </details>
 
-          <section>
-            <h3>가구 평균 전기요금 <Gran g={summary.power_gran} /></h3>
+          <details className="dsec">
+            <summary><h3>가구 평균 전기요금 <Gran g={summary.power_gran} /></h3></summary>
             <PowerChart rows={detail.power_trend} />
             <p className="muted small">주택용 전기를 쓰는 이 지역 가구의 월평균 청구액 (1인~다인 가구 평균, 복지할인 포함)</p>
-          </section>
+          </details>
 
           {summary.mgmt_per_m2 && (
-            <section>
-              <h3>아파트 관리비 <Gran g={summary.mgmt_gran} /></h3>
+            <details className="dsec">
+              <summary><h3>아파트 관리비 <Gran g={summary.mgmt_gran} /></h3></summary>
               <dl className="kv">
                 <div><dt>㎡당 월 관리비 (공용+장기수선)</dt><dd>{formatValue(summary.mgmt_per_m2, '원')}</dd></div>
                 <div><dt>전용 59㎡(공급 약 77㎡) 기준</dt><dd>{formatValue(summary.mgmt_per_m2 * 77, '원/월')}</dd></div>
@@ -85,12 +85,12 @@ export default function DetailPanel({ code, summary, metrics, sources, onClose, 
                 {summary.mgmt_complexes ? `관리비 공개 의무단지 ${summary.mgmt_complexes}곳의 중위값` : '이 지역 의무단지가 적어 시도 중위값'}
                 {' '}· 전기·수도·가스 같은 개별사용료 제외
               </p>
-            </section>
+            </details>
           )}
 
           {summary.edu_score != null && (
-            <section>
-              <h3>교육·문화 시설 <span className="muted small">(인구 {Number(summary.population || 0).toLocaleString('ko-KR')}명)</span></h3>
+            <details className="dsec">
+              <summary><h3>교육·문화 시설 <span className="muted small">(인구 {Number(summary.population || 0).toLocaleString('ko-KR')}명)</span></h3></summary>
               <table className="plain">
                 <tbody>
                   <tr><th>교육·육아 점수</th><td>{Math.round(summary.edu_score)}점 {'★'.repeat(summary.edu_stars || 0)}{'☆'.repeat(4 - (summary.edu_stars || 0))}</td></tr>
@@ -103,11 +103,11 @@ export default function DetailPanel({ code, summary, metrics, sources, onClose, 
                 </tbody>
               </table>
               <p className="muted small">점수는 인구 대비 비율과 면적(㎢) 대비 밀도를 전국과 비교한 백분위를 반반 섞은 값 (0~100). 나이스·유치원알리미·문화기반시설총람(2023 기준)·도시공원 표준데이터</p>
-            </section>
+            </details>
           )}
 
-          <section>
-            <h3>공공요금</h3>
+          <details className="dsec">
+            <summary><h3>공공요금</h3></summary>
             <table className="plain">
               <tbody>
                 {Object.keys(UTIL_LABEL).filter((k) => util[k]).map((k) => (
@@ -116,10 +116,10 @@ export default function DetailPanel({ code, summary, metrics, sources, onClose, 
               </tbody>
             </table>
             <p className="muted small">상하수도는 가정용 구간 단가로 계산했고 기본요금이 빠져 있어 실제보다 조금 낮습니다.</p>
-          </section>
+          </details>
 
-          <section>
-            <h3>장바구니 물가 <span className="muted small">(전국 중위 = 100)</span></h3>
+          <details className="dsec">
+            <summary><h3>장바구니 물가 <span className="muted small">(전국 중위 = 100)</span></h3></summary>
             <table className="plain">
               <tbody>
                 {detail.grocery.map((g) => (
@@ -132,11 +132,11 @@ export default function DetailPanel({ code, summary, metrics, sources, onClose, 
               {detail.grocery[0]?.stores_in_region ? `이 지역 조사 점포 ${detail.grocery[0].stores_in_region}곳` : '이 지역에는 조사 점포가 없어 같은 시도 점포로 계산'}
               {' '}· 대형마트·SSM·백화점 기준 (전통시장 미포함)
             </p>
-          </section>
+          </details>
 
           {detail.dining && (
-            <section>
-              <h3>외식비 <span className="muted small">({detail.dining.dining_ym?.slice(0, 4)}.{detail.dining.dining_ym?.slice(4)})</span> <Gran g={detail.dining.dining_gran} /></h3>
+            <details className="dsec">
+              <summary><h3>외식비 <span className="muted small">({detail.dining.dining_ym?.slice(0, 4)}.{detail.dining.dining_ym?.slice(4)})</span> <Gran g={detail.dining.dining_gran} /></h3></summary>
               <table className="plain">
                 <tbody>
                   {DINING_ITEMS.filter(([k]) => detail.dining[k]).map(([k, label]) => (
@@ -144,20 +144,20 @@ export default function DetailPanel({ code, summary, metrics, sources, onClose, 
                   ))}
                 </tbody>
               </table>
-            </section>
+            </details>
           )}
         </>
       )}
 
-      <section className="panel-sources">
-        <h3>이 지역 자료 출처</h3>
+      <details className="dsec panel-sources">
+        <summary><h3>이 지역 자료 출처</h3></summary>
         <ul>
           {sources.filter((s) => usedSources.has(s.source_id)).map((s) => (
             <li key={s.source_id}><a href={s.portal_url} target="_blank" rel="noreferrer">{s.attribution_text}</a></li>
           ))}
         </ul>
         <p className="muted small">값은 원자료를 가공(중위값·환산·지수화)한 것입니다.</p>
-      </section>
+      </details>
     </aside>
   )
 }

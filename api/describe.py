@@ -46,7 +46,7 @@ def _won_short(v):
     return f"{v / 10_000:,.0f}만 원" if v >= 10_000 else f"{v:,.0f}원"
 
 
-def card(result, features):
+def card(result, features, sort="cheap"):
     """result: recommend() 결과 1개, features: mart.region_features 행 → 카드 내용"""
     f = features or {}
     arch = f.get("archetype") or "small_city"
@@ -71,7 +71,14 @@ def card(result, features):
     lv = level(result["national_pct"])
     name = result["sigungu"]
     rank = result["national_rank"]
-    where = "전국 시군구 중 가장 저렴해요" if rank == 1 else f"전국 시군구 중 {rank}번째로 저렴해요"
+    n = result.get("national_count") or rank
+    if sort == "premium":   # 비싼 쪽에서 몇 번째
+        top = n - rank + 1
+        where = "전국 시군구 중 생활비가 가장 높아요" if top == 1 else f"전국 시군구 중 생활비가 {top}번째로 높아요"
+    elif sort == "middle":
+        where = "전국 시군구 한가운데쯤인 무난한 생활비예요"
+    else:
+        where = "전국 시군구 중 가장 저렴해요" if rank == 1 else f"전국 시군구 중 {rank}번째로 저렴해요"
     text = (f"{result['sido']} {name}{josa(name, '은', '는')} {intro}. "
             f"예상 생활비는 월 약 {_won_short(result['total'])}으로 {where}. "
             f"가장 큰 몫은 {items[biggest]['label']}(월 {_won_short(items[biggest]['value'])})입니다.")

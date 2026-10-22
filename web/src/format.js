@@ -79,3 +79,9 @@ export function ymLabel(ym) {
 
 export const won = (v) => `${nf0.format(Math.round(v))}원`
 export const manwon = (v) => `${nf0.format(Math.round(v / 10_000))}만 원`
+
+// 생활비 수준 배지 문구: 싼 쪽 절반은 '저렴한 순 상위', 비싼 쪽 절반은 '비싼 순 상위'
+export function levelText(level) {
+  const p = level.pct
+  return p <= 50 ? `${level.name} · 저렴한 순 상위 ${p}%` : `${level.name} · 비싼 순 상위 ${Math.max(1, 101 - p)}%`
+}

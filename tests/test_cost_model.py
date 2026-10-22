@@ -121,7 +121,8 @@ def test_every_question_has_two_funny_options_with_hint_and_effect():
     for q in cm.QUESTIONS:
         assert q["id"] not in seen and q["title"]
         seen.add(q["id"])
-        assert [o["id"] for o in q["options"]] == ["a", "b"], q["id"]
+        # 답은 2개(a·b). 순위 기준 질문(sort)만 3개(a·b·c)
+        assert [o["id"] for o in q["options"]] == (["a", "b", "c"] if q["id"] == "sort" else ["a", "b"]), q["id"]
         for o in q["options"]:
             assert o["label"] and o["hint"], (q["id"], o["id"])
         assert any(o["set"] for o in q["options"]), q["id"]         # 답이 무언가를 바꾼다
@@ -294,3 +295,38 @@ def test_missing_scores_filled_with_sido_median_and_flagged():
     picked = {p["key"]: p for p in y["scores"]["picked"]}
     assert picked["elem"]["score"] == 80 and picked["elem"]["filled"]   # 강원(춘천) 값으로 채움
     assert picked["library"]["score"] == 60 and picked["library"]["filled"]
+
+
+# ── 순위 기준: 알뜰 · 딱 중간 · 프리미엄 ───────────────────────
+def _ladder(n=11):
+    """생활비가 1만 원씩 차이 나는 지역 n곳 (주거비만 다름)"""
+    return [{**CHUNCHEON, "region_code": f"92{i:03d}", "sigungu": f"동네{i}", "cost_s": 30.0 + i} for i in range(n)]
+
+
+def test_sort_modes_pick_cheapest_middle_and_priciest():
+    regions = _ladder()
+    cheap, _, asm_c = cm.recommend(regions, SOLO)
+    premium, _, asm_p = cm.recommend(regions, {**SOLO, "sort": "c"})
+    middle, _, _ = cm.recommend(regions, {**SOLO, "sort": "b"})
+    assert cheap[0]["sigungu"] == "동네0" and asm_c["sort"] == "cheap"
+    assert premium[0]["sigungu"] == "동네10" and asm_p["sort"] == "premium"
+    assert middle[0]["sigungu"] == "동네5"                          # 11곳의 한가운데
+    assert premium[0]["national_rank"] == 11                         # 수준 배지·순위는 늘 생활비 기준
+    assert [x["total"] for x in cheap] == sorted(x["total"] for x in cheap)
+
+
+def test_sort_blends_with_amenities_and_rejects_bad_values():
+    regions = _scored([(r, (50, 50)) for r in _ladder()])
+    regions[9] = {**regions[9], "library_score": 100}                 # 두 번째로 비싼 곳의 도서관 점수만 높게
+    res, _, _ = cm.recommend(regions, {**SOLO, "sort": "c", "library": "a"})
+    assert res[0]["sigungu"] in ("동네9", "동네10")
+    with pytest.raises(ValueError):
+        cm.normalize({"sort": "d"})
+
+
+def test_card_text_follows_sort():
+    regions = _ladder()
+    res, _, _ = cm.recommend(regions, {**SOLO, "sort": "c"})
+    assert "가장 높아요" in describe.card(res[0], regions[-1], "premium")["text"]
+    res, _, _ = cm.recommend(regions, {**SOLO, "sort": "b"})
+    assert "한가운데" in describe.card(res[0], regions[5], "middle")["text"]

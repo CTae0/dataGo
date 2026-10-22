@@ -34,8 +34,12 @@ export default function Questionnaire({ spec, initial, onDone, onCancel }) {
     const onKey = (e) => {
       if (e.altKey || e.ctrlKey || e.metaKey) return
       const k = e.key.toLowerCase()
+      const ids = q.options.map((o) => o.id)
+      const byNum = { 1: ids[0], 2: ids[1], 3: ids[2] }[k]
       if (k === 'a' || k === 'arrowleft') pick('a')
-      else if (k === 'b' || k === 'arrowright') pick('b')
+      else if ((k === 'b' || k === 'arrowright') && ids.includes('b')) pick('b')
+      else if (k === 'c' && ids.includes('c')) pick('c')
+      else if (byNum) pick(byNum)
       else if (k === 'backspace' && step > 0) setStep(step - 1)
       else return
       e.preventDefault()
@@ -54,7 +58,7 @@ export default function Questionnaire({ spec, initial, onDone, onCancel }) {
       <div className="quiz-group">{{ '생활': '나의 생활', '편의': '생활편의', '어디서': '어디서 살고 싶나요' }[q.group] || q.group}</div>
       <h2 className="quiz-title">{q.title}</h2>
 
-      <div className="options ab" role="radiogroup" aria-label={q.title}>
+      <div className={`options ab n${q.options.length}`} role="radiogroup" aria-label={q.title}>
         {q.options.map((o) => (
           <button key={o.id} type="button" role="radio" aria-checked={ans[q.id] === o.id}
                   className={`option ${ans[q.id] === o.id ? 'on' : ''}`} onClick={() => pick(o.id)}>
@@ -65,7 +69,7 @@ export default function Questionnaire({ spec, initial, onDone, onCancel }) {
         ))}
       </div>
 
-      <p className="muted small kbd-hint">키보드: A 또는 ← · B 또는 → · 뒤로 Backspace</p>
+      <p className="muted small kbd-hint">키보드: A·B{q.options.length > 2 ? '·C' : ''} 또는 1·2{q.options.length > 2 ? '·3' : ''} · 뒤로 Backspace</p>
       <div className="quiz-nav">
         <button type="button" className="secondary" disabled={step === 0} onClick={() => setStep(step - 1)}>이전</button>
         {last && <button type="button" className="primary"

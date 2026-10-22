@@ -1,7 +1,7 @@
 // 결과 공유 이미지 (1080×1350 PNG, 1위 카드 하나). 라이브러리 없이 canvas로 그린다.
 // 카드 그림은 화면에 이미 있는 Scene SVG를 그대로 옮겨 그린다 (애니메이션은 멈춘 한 장면).
 // 출처 표시: 공공데이터 원천을 한 줄로 밝힌다 (ATTRIBUTION.md — 오피넷은 출처 명시 필수).
-import { GROUP_COLOR } from './format.js'
+import { GROUP_COLOR, levelText } from './format.js'
 
 const W = 1080, H = 1350
 const FONT = '"Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif'
@@ -54,7 +54,9 @@ function wrap(ctx, text, maxWidth, maxLines) {
  * @param sceneFor (region_code) → 화면의 Scene <svg> 요소 또는 null
  * @returns Promise<Blob> (image/png)
  */
-export async function makeShareImage({ results, groups, persona, sceneFor, host }) {
+const SORT_TITLE = { cheap: '내 생활비로 고른 1등 동네', middle: '딱 중간 1등 동네', premium: '프리미엄 1등 동네' }
+
+export async function makeShareImage({ results, groups, persona, sceneFor, host, sort = 'cheap' }) {
   const canvas = document.createElement('canvas')
   canvas.width = W
   canvas.height = H
@@ -72,7 +74,7 @@ export async function makeShareImage({ results, groups, persona, sceneFor, host 
   ctx.fillText('어디 살까?', 158, 112)
   ctx.fillStyle = MUTED
   ctx.font = `500 28px ${FONT}`
-  ctx.fillText('내 생활비로 고른 1등 동네', 160, 150)
+  ctx.fillText(SORT_TITLE[sort] || SORT_TITLE.cheap, 160, 150)
   ctx.fillStyle = INK
   ctx.font = `600 30px ${FONT}`
   wrap(ctx, `${persona} 님에게 어울리는 동네`, W - 96, 2).forEach((l, i) => ctx.fillText(l, 48, 214 + i * 42))
@@ -121,7 +123,7 @@ export async function makeShareImage({ results, groups, persona, sceneFor, host 
   const totalW = ctx.measureText(total).width
   if (x.card?.level) {
     ctx.fillStyle = ACCENT; ctx.font = `600 28px ${FONT}`
-    ctx.fillText(wrap(ctx, `${x.card.level.name} · 저렴한 순 상위 ${x.card.level.pct}%`, iw - totalW - 24, 1)[0] || '',
+    ctx.fillText(wrap(ctx, levelText(x.card.level), iw - totalW - 24, 1)[0] || '',
                  ix + totalW + 24, ty - 4)
   }
   // 묶음 4색 막대 + 묶음별 금액

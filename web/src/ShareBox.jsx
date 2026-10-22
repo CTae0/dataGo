@@ -8,6 +8,7 @@ export default function ShareBox({ spec, data, persona }) {
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState('')
   useEffect(() => () => { if (img) URL.revokeObjectURL(img.url) }, [img])
+  useEffect(() => { setImg(null) }, [data])   // 결과(순위 기준 등)가 바뀌면 예전 이미지는 버린다
 
   const top = data.results.slice(0, 1)   // 공유 이미지는 1위 카드만
   const top1 = top[0] ? `${top[0].sido} ${top[0].sigungu}` : ''
@@ -20,12 +21,14 @@ export default function ShareBox({ spec, data, persona }) {
     setBusy(true); setMsg('')
     try {
       const blob = await makeShareImage({
-        results: top, groups: spec.groups, persona, host: location.host,
+        results: top, groups: spec.groups, persona, host: location.host, sort: data.answers.sort,
         sceneFor: (code) => document.querySelector(`.pcard[data-code="${code}"] .pcard-art svg`),
       })
       setImg({ url: URL.createObjectURL(blob), blob })
+      return blob
     } catch (e) {
       setMsg(`이미지를 만들지 못했어요 (${e?.message || e})`)
+      return null
     } finally { setBusy(false) }
   }
 
@@ -47,9 +50,11 @@ export default function ShareBox({ spec, data, persona }) {
     setMsg(ok ? `${what} 복사했어요. 메신저에 붙여 넣어 보세요.` : '복사하지 못했어요. 아래 주소를 길게 눌러 복사해 주세요.')
   }
 
+  // 공유하기: 이미지가 없으면 먼저 그리고 바로 시스템 공유창 (휴대폰 카카오톡 등)
   const share = async () => {
     try {
-      const file = img && new File([img.blob], 'eodi-salkka.png', { type: 'image/png' })
+      const blob = img?.blob || await make()
+      const file = blob && new File([blob], 'eodi-salkka.png', { type: 'image/png' })
       if (file && navigator.canShare?.({ files: [file] })) {
         await navigator.share({ files: [file], title: '어디 살까?', text: inviteText })
       } else {
@@ -67,9 +72,9 @@ export default function ShareBox({ spec, data, persona }) {
         <span className="muted small">카드 이미지와 링크로 친구에게도 권해 보세요</span>
       </div>
       <div className="share-actions">
-        {!img && <button type="button" className="primary" onClick={make} disabled={busy}>{busy ? '그리는 중…' : '결과 이미지 만들기'}</button>}
-        {img && <a className="primary" href={img.url} download="eodi-salkka.png">이미지 저장</a>}
-        {img && canShare && <button type="button" className="primary" onClick={share}>공유하기</button>}
+        {canShare && <button type="button" className="primary" onClick={share} disabled={busy}>{busy ? '그리는 중…' : '📤 공유하기'}</button>}
+        {!img && <button type="button" className={canShare ? 'secondary' : 'primary'} onClick={make} disabled={busy}>{busy ? '그리는 중…' : '결과 이미지 만들기'}</button>}
+        {img && <a className={canShare ? 'secondary' : 'primary'} href={img.url} download="eodi-salkka.png">이미지 저장</a>}
         <button type="button" className="secondary" onClick={() => copy(resultUrl, '내 결과 링크를')}>내 결과 링크 복사</button>
         <button type="button" className="secondary" onClick={() => copy(inviteText, '권유 문구와 링크를')}>친구에게 권하기</button>
       </div>

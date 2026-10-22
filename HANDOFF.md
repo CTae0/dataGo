@@ -310,6 +310,15 @@ docker compose exec db psql -U eodi -d eodi -f /sql/load_public_fee.sql
 - 종합 = (1−w) × 생활비 점수 + w × 분야 점수
 - 가중치가 0이면 기존 순위와 같아요(테스트로 보장).
 
+## 2026-10-22 UI/UX 가독성 개편 + 휴대폰 화면 + 순위 기준
+- **폭 기준:** 760px 이하는 휴대폰 화면(`useIsMobile`, `.app.mobile`), 그 위는 PC(지도 + 오른쪽 패널).
+- **휴대폰 화면 틀:** 얇은 상단바(로고 + 화면 이름) · 페이지 한 번 스크롤 · 하단 탭 바(`TabBar.jsx`: 홈 / 내 동네 / 지도 / 랜덤, 퀴즈 중엔 숨김).
+- **휴대폰 지도:** 상단바·탭 바 사이 전체 화면. 위쪽 지표 칩(`MetricChips.jsx`), 바텀시트(`BottomSheet.jsx`: 접힘 112px / 반 55% / 전체) — 접힘·반은 `RegionSummary.jsx`, 전체는 `DetailPanel`.
+- **지도 늦게 불러오기:** `MapView`(maplibre + CSS)는 `React.lazy`, `sigungu.geojson`은 지도가 필요할 때만 받는다. 첫 화면 JS 약 290KB(gzip 90KB).
+  - maplibre CSS가 늦게 와서 `.map` 위치를 덮어쓰므로 `.map.maplibregl-map { position:absolute; inset:0 }`로 고정해 둠.
+- **글꼴·토큰** (`styles.css` `:root`): Pretendard Variable(jsdelivr v1.3.9). 글자 `--fs-attr 12`(출처만) / `xs 13` / `sm 15`(휴대폰 16) / `md 17` / `lg 20` / `xl 24` / `2xl 30`. 누르는 영역 `--tap 44px`. `word-break: keep-all`.
+- **순위 기준 (`sort`):** 퀴즈 마지막 문항(답 3개 a/b/c = 알뜰 / 딱 중간 / 프리미엄) + 결과 맨 위 스위치. 생활비 점수만 바뀐다(백분위 p: 100−p / 100−2|p−50| / p). 수준 배지는 늘 생활비 기준이고, 비싼 쪽 절반은 "비싼 순 상위 N%"로 보여 준다.
+
 ## 다음 작업
 1. **V-World 인증키 발급(사용자)** → `.env`에 `VWORLD_API_KEY`. 시군구 경계 LT_C_ADSIGG_INFO(현행, GeoJSON)를 받아 PostGIS에 적재.
    (data.go.kr 경계 원천들은 2025년 기준이라 2026 인천·화성 개편이 빠짐)

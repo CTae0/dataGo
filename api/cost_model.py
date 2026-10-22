@@ -224,13 +224,20 @@ QUESTIONS = [
         {"id": "a", "label": "대형마트 카트를 끌어야 장 본 기분", "hint": "장은 대형마트에서 한 번에", "set": {"where": {"need_mart": True}}},
         {"id": "b", "label": "동네 슈퍼·시장이면 충분", "hint": "동네 슈퍼·시장에서 그때그때", "set": {}},
     ]},
+    # 순위 기준 — 이 질문만 답이 3개 (결과 화면 맨 위 정렬 스위치와 같은 값)
+    {"id": "sort", "group": "어디서", "title": "어떤 동네가 1등이면 좋겠어요?", "options": [
+        {"id": "a", "label": "💰 한 푼이라도 아끼는 알뜰파", "hint": "생활비가 적게 드는 동네", "set": {"sort": "cheap"}},
+        {"id": "b", "label": "⚖️ 너무 싸지도 비싸지도 않게", "hint": "전국 평균쯤의 무난한 동네", "set": {"sort": "middle"}},
+        {"id": "c", "label": "💎 돈보다 여유, 프리미엄", "hint": "생활비가 높아도 누리는 게 많은 동네", "set": {"sort": "premium"}},
+    ]},
 ]
+SORT_LABEL = {"cheap": "알뜰한 순", "middle": "딱 중간", "premium": "프리미엄 순"}
 DEFAULTS = {"living": "a", "family_size": "a", "tenure": "b", "house": "b", "shower": "b", "boiler": "b",
             "aircon": "b", "grocery": "b",
             "dining": "b", "trash": "b", "transit": "a", "capital": "b", "metro": "b", "sea": "b", "airport": "b",
             "vibe": "b", "mart": "b", "drive": "b",
             "has_kids": "b", "kid_age": "b", "kinder": "b", "elem": "b", "secondary": "b", "academy": "b",
-            "library": "b", "museum": "b", "arts": "b", "park": "b"}
+            "library": "b", "museum": "b", "arts": "b", "park": "b", "sort": "a"}
 # 지역 조건 ↔ mart.region_features. 조건을 다 맞추는 곳이 MIN_RESULTS 미만이면 앞에서부터 하나씩 뺀다
 WHERE = [  # (키, 화면 이름, 지역이 조건을 맞추는지)
     ("need_mart", "대형마트", lambda r: (r.get("grocery_stores") or 0) > 0),
@@ -277,7 +284,7 @@ def normalize(answers):
     """답(질문 id → 'a'/'b') → 계산용 값. 잘못된 답은 ValueError"""
     raw = {**DEFAULTS, **{k: v for k, v in (answers or {}).items() if v is not None}}
     p = {"household": "solo", "tenure": "wolse", "house": "other", "shower": 1.0, "boiler": 1.0, "aircon": 1.0,
-         "grocery": 1.0, "car": False, "km_factor": 1.0, "kids": False, "kid": None, "amenity": {},
+         "grocery": 1.0, "car": False, "km_factor": 1.0, "kids": False, "kid": None, "amenity": {}, "sort": "cheap",
          "meals": 12, "bags": 4, "trips": 44, "where": {}}
     for q in QUESTIONS:
         if not visible(q, raw):
@@ -399,7 +406,10 @@ def recommend(regions, answers):
     n = len(everyone)
     for i, x in enumerate(everyone, 1):
         x["national_rank"], x["national_pct"] = i, max(1, -(-i * 100 // n))   # 싼 순 상위 몇 %인지 (올림, 최소 1)
-        x["_cost_score"] = 100.0 if n == 1 else 100.0 * (n - i) / (n - 1)
+        x["national_count"] = n
+        pct = 0.0 if n == 1 else 100.0 * (i - 1) / (n - 1)        # 0 = 가장 쌈, 100 = 가장 비쌈
+        x["_cost_score"] = {"cheap": 100.0 - pct, "premium": pct,  # 순위 기준(sort)별 생활비 점수
+                            "middle": 100.0 - 2 * abs(pct - 50)}[a["sort"]]
 
     # 생활편의 지표 점수: 결측은 같은 시도 중위값(없으면 전국 중위값)으로 채운다
     weights = amenity_weights(a)
@@ -433,7 +443,7 @@ def recommend(regions, answers):
                            + sum(w * sc[INDICATORS[k][0]][0] for k, w in weights.items()), 2),
             "edu_stars": x["_row"].get("edu_stars"), "culture_stars": x["_row"].get("culture_stars"),
         }
-    if weights:   # 고른 시설이 있으면 종합 점수 순 (같으면 싼 곳 먼저). 없으면 위의 생활비 순서 그대로
+    if weights or a["sort"] != "cheap":   # 종합 점수 순 (같으면 싼 곳 먼저). 알뜰·편의 없음이면 위의 생활비 순서 그대로
         everyone.sort(key=lambda x: (-x["scores"]["total"], x["total"], x["region_code"]))
 
     wanted = [w for w in WHERE if a["where"].get(w[0])]
@@ -452,6 +462,7 @@ def recommend(regions, answers):
         "params": {k: a[k] for k in ("tenure", "house", "shower", "boiler", "aircon", "grocery", "meals", "bags",
                                      "trips", "car", "km_factor")},
         "weights": {"cost": round(1 - wsum, 3), **{k: round(w, 3) for k, w in weights.items()}},
+        "sort": a["sort"],
         "where": [label for key, label, _ in WHERE if a["where"].get(key) and label not in relaxed],
         "relaxed": relaxed,
         "notes": [
@@ -464,7 +475,8 @@ def recommend(regions, answers):
             "장보기는 가구원 수별 식료품비(국가데이터처 가계동향조사 2026년 1~2분기)에 지역 장바구니 지수를 곱한 값입니다 (대형마트·SSM 기준).",
             "물 사용량은 1인 하루 196.6ℓ(2024년 상수도 통계 가정용), 도시가스는 가구당 연 559.6㎥(한국가스공사 2022년)를 기준으로 했습니다. 가스의 가구원 수별 차이는 추정입니다.",
             "바다는 해안선이 3km 이상인 시군구, 공항은 가장 가까운 공항까지 직선 40km 이내(도로 약 1.3배, 차로 1시간 안팎), 광역시 생활권은 특별·광역시와 그와 맞닿은 시군구입니다.",
-            ("순위는 생활비 점수 " + f"{round((1 - wsum) * 100)}%"
+            (f"순위 기준은 「{SORT_LABEL[a['sort']]}」입니다 (알뜰: 쌀수록, 프리미엄: 비쌀수록, 딱 중간: 전국 가운데에 가까울수록 생활비 점수가 높음). "
+             + "순위는 생활비 점수 " + f"{round((1 - wsum) * 100)}%"
              + "".join(f" + {INDICATORS[k][2]} {round(w * 100)}%" for k, w in weights.items())
              + "로 매겼습니다. 시설 점수는 학교·학원(나이스), 유치원(유치원알리미), 도서관·박물관·미술관·문예회관(문화기반시설총람), 공원(도시공원 표준데이터)을 인구 대비 비율과 면적(㎢) 대비 밀도를 전국과 비교해 반반 섞은 0~100점입니다."),
             "모든 값은 추정치이며 실제와 다를 수 있습니다.",

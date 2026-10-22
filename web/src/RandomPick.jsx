@@ -1,5 +1,5 @@
 import Scene from './Scene.jsx'
-import { manwon } from './format.js'
+import { levelText, manwon } from './format.js'
 import { starText } from './Results.jsx'
 
 // '아무 데나 살아보기': 무작위로 뽑은 시군구 1곳의 카드 (기본 답 기준 생활비 + 주거·교육·문화 요약)
@@ -23,7 +23,7 @@ export default function RandomPick({ data, onAgain, onQuiz }) {
           <span className="pcard-name">{x.sido} {x.sigungu}</span>
           <span className="pcard-level">
             <strong>월 약 {manwon(x.total)}</strong>
-            {c && <span className="level-badge">{c.level.name} · 저렴한 순 상위 {c.level.pct}%</span>}
+            {c && <span className="level-badge">{levelText(c.level)}</span>}
           </span>
           <span className="muted small">{data.profile}</span>
           {c?.stars && (

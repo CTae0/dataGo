@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import Scene from './Scene.jsx'
 import ShareBox from './ShareBox.jsx'
-import { GROUP_COLOR, ITEM_COLOR, NA_COLOR, manwon, won } from './format.js'
+import { GROUP_COLOR, ITEM_COLOR, NA_COLOR, levelText, manwon, won } from './format.js'
 
 const MEDALS = ['🥇 1위', '🥈 2위', '🥉 3위']
 
@@ -86,6 +86,33 @@ function Stars({ x }) {
   )
 }
 
+// 설명은 2줄까지, '자세히'로 펼친다
+function Clamp({ text }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="pcard-textbox">
+      <p className={`pcard-text ${open ? '' : 'clamp'}`}>{text}</p>
+      <button type="button" className="link" aria-expanded={open} onClick={() => setOpen(!open)}>{open ? '접기' : '자세히'}</button>
+    </div>
+  )
+}
+
+// 사실 칩은 4개까지, 나머지는 '+N'으로 펼친다
+function Facts({ facts }) {
+  const [all, setAll] = useState(false)
+  const shown = all ? facts : facts.slice(0, 4)
+  return (
+    <span className="pcard-facts">
+      {shown.map((f) => <span key={f}>{f}</span>)}
+      {facts.length > 4 && (
+        <button type="button" className="link fact-more" onClick={() => setAll(!all)}>{all ? '접기' : `+${facts.length - 4}`}</button>
+      )}
+    </span>
+  )
+}
+
+const SORTS = [['a', '💰 알뜰한 순'], ['b', '⚖️ 딱 중간'], ['c', '💎 프리미엄 순']]
+
 function PodiumCard({ spec, x, selected, onSelect }) {
   const [open, setOpen] = useState(false)
   const c = x.card
@@ -101,10 +128,8 @@ function PodiumCard({ spec, x, selected, onSelect }) {
         <div className="pcard-body">
           {c && <span className="pcard-nick">{c.nickname}</span>}
           <span className="pcard-name">{x.sido} {x.sigungu}</span>
-          <span className="pcard-level">
-            <strong>월 약 {manwon(x.total)}</strong>
-            {c && <span className="level-badge">{c.level.name} · 저렴한 순 상위 {c.level.pct}%</span>}
-          </span>
+          <strong className="pcard-amount">월 약 {manwon(x.total)}</strong>
+          {c && <span className="level-badge">{levelText(c.level)}</span>}
           <Bar spec={spec} items={x.items} total={x.total} />
           <Stars x={x} />
           {energy > 0 && (
@@ -113,10 +138,10 @@ function PodiumCard({ spec, x, selected, onSelect }) {
               에너지{withMgmt ? '·관리비' : ''} 월 약 {manwon(energy)}
             </span>
           )}
-          {c && <p className="pcard-text">{c.text}</p>}
-          {c?.facts?.length > 0 && <span className="pcard-facts">{c.facts.map((f) => <span key={f}>{f}</span>)}</span>}
         </div>
       </button>
+      {c && <Clamp text={c.text} />}
+      {c?.facts?.length > 0 && <Facts facts={c.facts} />}
       <button type="button" className="link pcard-toggle" aria-expanded={open} onClick={() => setOpen(!open)}>
         {open ? '항목 접기' : '항목별로 보기'}
       </button>
@@ -130,7 +155,7 @@ function PodiumCard({ spec, x, selected, onSelect }) {
   )
 }
 
-export default function Results({ spec, data, onSelect, selected, onRestart }) {
+export default function Results({ spec, data, onSelect, selected, onRestart, onSort }) {
   const [asTable, setAsTable] = useState(false)
   const [moreCards, setMoreCards] = useState(false)   // 2·3위 카드는 '더 보기'를 눌러야 보인다
   const answers = data.answers.answers || {}
@@ -142,14 +167,23 @@ export default function Results({ spec, data, onSelect, selected, onRestart }) {
 
   return (
     <div className="results">
-      <div className="results-head">
-        <p className="persona">{persona(spec, answers)} 님에게 어울리는 동네예요</p>
-        <button type="button" className="link" onClick={onRestart}>다시 하기</button>
-      </div>
-      {asm.where?.length > 0 && <p className="muted small">조건: {asm.where.join(' · ')}</p>}
-      {asm.relaxed?.length > 0 && (
-        <p className="relaxed">조건을 모두 만족하는 곳이 너무 적어서 「{asm.relaxed.join('」, 「')}」 조건은 빼고 골랐어요.</p>
+      {/* 순위 기준 스위치 (퀴즈 마지막 문항과 같은 값) */}
+      {onSort && (
+        <div className="sort-switch" role="radiogroup" aria-label="순위 기준">
+          {SORTS.map(([id, label]) => (
+            <button key={id} type="button" role="radio" aria-checked={(answers.sort || 'a') === id}
+                    className={(answers.sort || 'a') === id ? 'on' : ''} onClick={() => onSort(id)}>{label}</button>
+          ))}
+        </div>
       )}
+      <p className="persona">{persona(spec, answers)} 님에게 어울리는 동네예요</p>
+      {(asm.where?.length > 0 || asm.relaxed?.length > 0) && (
+        <div className="cond-chips">
+          {asm.where?.map((w) => <span key={w} className="cond">✓ {w}</span>)}
+          {asm.relaxed?.map((w) => <span key={w} className="cond relaxed-chip" title="조건을 다 맞추는 곳이 너무 적어서 뺐어요">✕ {w} (뺌)</span>)}
+        </div>
+      )}
+      <button type="button" className="secondary restart" onClick={onRestart}>↺ 질문 다시 하기</button>
 
       {data.count > 0 && (
         <>

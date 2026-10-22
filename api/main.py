@@ -227,7 +227,7 @@ def recommend(answers: dict):
         raise HTTPException(422, str(e))
     by_code = {r["region_code"]: r for r in rows}
     for x in results[:3]:   # 카드 문구(그림 유형·별명·설명·수준): 화면은 1위만 쓰지만 2·3위도 붙여 둔다
-        x["card"] = describe.card(x, by_code.get(x["region_code"]))
+        x["card"] = describe.card(x, by_code.get(x["region_code"]), normalized["sort"])
     return {"answers": normalized, "count": len(results), "results": results, "assumptions": assumptions}
 
 

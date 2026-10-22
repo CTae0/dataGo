@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import 'maplibre-gl/dist/maplibre-gl.css'   // 지도와 같이 늦게 불러온다 (App.jsx lazy)
 import * as maplibregl from 'maplibre-gl'   // v6는 default export가 없다
 // v6는 worker가 별도 ESM 파일이라 Vite에서는 주소를 직접 알려 줘야 한다
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url'
