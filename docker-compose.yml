@@ -140,7 +140,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-eodi}
       POSTGRES_USER: ${POSTGRES_USER:-eodi}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-eodi_local}
-      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-https://wherelive-phi.vercel.app,http://localhost:5173,http://localhost:4173}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-https://www.baronow.kr,https://baronow.kr,https://wherelive-phi.vercel.app,http://localhost:5173,http://localhost:4173}
     ports:
       - "127.0.0.1:8001:8000"
     depends_on:

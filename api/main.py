@@ -32,7 +32,7 @@ app = FastAPI(title="어디 살까? API", version="0.1.0")
 #   ALLOWED_ORIGINS(쉼표로 구분)로 바꿀 수 있다. 이 팀의 Vercel 미리보기 주소(wherelive-*-ctae0s-projects.vercel.app)도 허용.
 #   ngrok 경고 페이지를 건너뛰는 헤더(ngrok-skip-browser-warning) 때문에 브라우저가 사전 요청을 보내므로 그 헤더를 허용한다.
 ALLOWED_ORIGINS = [o.strip() for o in os.environ.get(
-    "ALLOWED_ORIGINS", "https://wherelive-phi.vercel.app,http://localhost:5173,http://localhost:4173").split(",") if o.strip()]
+    "ALLOWED_ORIGINS", "https://www.baronow.kr,https://baronow.kr,https://wherelive-phi.vercel.app,http://localhost:5173,http://localhost:4173").split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
